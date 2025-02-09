@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Linear Regression Visualization</title>
+    <title>Linear Regression with SGD Variants</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -15,136 +15,123 @@
             max-width: 600px;
             margin: auto;
         }
-        input, button {
+        input, button, select {
             margin: 5px;
         }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <h2>Interactive Linear Regression Visualization</h2>
+    <h2>Interactive Linear Regression with SGD Variants</h2>
     
     <!-- User Input Fields -->
-    <label>X values (comma separated) (max 10 values): <input type="text" id="x_values" value="1,2,3,4,5"></label><br>
-    <label>Y values (comma separated) (max 10 values): <input type="text" id="y_values" value="2,4,6,8,10"></label><br>
+    <label>X values: <input type="text" id="x_values" value="1,2,3,4,5"></label><br>
+    <label>Y values: <input type="text" id="y_values" value="2,4,6,8,10"></label><br>
     <label>Initial a: <input type="number" id="a" value="0"></label>
     <label>Initial b: <input type="number" id="b" value="0"></label><br>
     <label>Learning Rate: <input type="number" id="learning_rate" value="0.01" step="0.001"></label>
-    <label>Epochs (max 10 epochs): <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
+    <label>Epochs: <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
+    
+    <!-- Selection for SGD Type and Additional Options -->
+    <label>SGD Type: 
+        <select id="sgd_type">
+            <option value="batch">Batch Gradient Descent</option>
+            <option value="mini-batch">Mini-Batch Gradient Descent</option>
+            <option value="stochastic">Stochastic Gradient Descent</option>
+        </select>
+    </label>
+    <label id="batch_size_label" class="hidden">Batch Size: <input type="number" id="batch_size" value="2" min="1"></label>
+    <label id="shuffle_label" class="hidden"><input type="checkbox" id="shuffle_data"> Shuffle Data</label><br>
     
     <!-- Control Buttons -->
     <button onclick="initializeRegression()">Start Regression</button>
     <button onclick="prevEpoch()">Previous Epoch</button>
     <button onclick="nextEpoch()">Next Epoch</button>
+    <button onclick="toggleCode()">Show Code</button>
     
     <canvas id="regressionChart"></canvas>
     <p id="info"></p>
     <p id="error_message" style="color: red;"></p>
     
-    <script>
-        let chart;
-        let x, y, a, b, lr, epochs;
-        let epochIndex = 0;
-        let history = [];
-        const MAX_INPUTS = 10; // Restrict maximum number of inputs for x and y
+    <pre id="code_section" class="hidden"></pre>
 
-        // Function to plot data and regression line
-        function plotData(epoch) {
+    <script>
+        let chart, history = [], epochIndex = 0;
+        const MAX_INPUTS = 10;
+
+        // Handle showing/hiding batch size and shuffle options based on SGD type
+        document.getElementById('sgd_type').addEventListener('change', function() {
+            document.getElementById('batch_size_label').classList.toggle('hidden', this.value !== 'mini-batch');
+            document.getElementById('shuffle_label').classList.toggle('hidden', this.value !== 'mini-batch');
+        });
+
+        // Function to plot data and regression lines for different epochs
+        function plotData() {
             let ctx = document.getElementById('regressionChart').getContext('2d');
             if (chart) chart.destroy();
-            let data = history[epoch];
-            chart = new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [
-                        {
-                            label: 'Data Points',
-                            data: x.map((xi, i) => ({ x: xi, y: y[i] })),
-                            backgroundColor: 'blue'
-                        },
-                        {
-                            label: 'Regression Line',
-                            data: data.line,
-                            type: 'line',
-                            borderColor: 'red',
-                            borderWidth: 2,
-                            fill: false
-                        }
-                    ]
-                },
-                options: {
-                    scales: {
-                        x: { title: { display: true, text: 'X' } },
-                        y: { title: { display: true, text: 'Y' } }
-                    }
+            
+            let datasets = [
+                {
+                    label: 'Data Points',
+                    data: history[0].points,
+                    backgroundColor: 'blue',
+                    type: 'scatter'
                 }
+            ];
+            
+            // Add past regression lines with fading effect
+            history.forEach((entry, i) => {
+                datasets.push({
+                    label: `Epoch ${i+1}`,
+                    data: entry.line,
+                    type: 'line',
+                    borderColor: `rgba(255, 0, 0, ${1 - i / history.length})`,
+                    borderWidth: 2,
+                    fill: false
+                });
             });
-            document.getElementById("info").innerText = `Epoch: ${epoch + 1}, a: ${data.a.toFixed(4)}, b: ${data.b.toFixed(4)}, Loss: ${data.loss.toFixed(4)}`;
+            
+            chart = new Chart(ctx, { type: 'scatter', data: { datasets }, options: { scales: { x: { title: { display: true, text: 'X' } }, y: { title: { display: true, text: 'Y' } } } } });
+            document.getElementById("info").innerText = `Epoch: ${epochIndex + 1}, a: ${history[epochIndex].a.toFixed(4)}, b: ${history[epochIndex].b.toFixed(4)}, Loss: ${history[epochIndex].loss.toFixed(4)}`;
         }
 
-        // Function to initialize and compute linear regression step-by-step
+        // Function to initialize and compute linear regression using different SGD methods
         function initializeRegression() {
-            let errorMessage = document.getElementById("error_message");
-            errorMessage.innerText = ""; // Clear previous errors
-
-            x = document.getElementById("x_values").value.split(",").map(Number);
-            y = document.getElementById("y_values").value.split(",").map(Number);
-            
-            // Check if x and y have the same number of inputs
-            if (x.length !== y.length) {
-                errorMessage.innerText = "Error: Number of X and Y values must be equal.";
-                return;
-            }
-
-            // Check if input count exceeds the limit
-            if (x.length > MAX_INPUTS) {
-                errorMessage.innerText = `Error: Maximum allowed input values are ${MAX_INPUTS}.`;
-                return;
-            }
-
-            a = parseFloat(document.getElementById("a").value);
-            b = parseFloat(document.getElementById("b").value);
-            lr = parseFloat(document.getElementById("learning_rate").value);
-            epochs = Math.min(10, parseInt(document.getElementById("epochs").value));
-            epochIndex = 0;
+            let x = document.getElementById("x_values").value.split(",").map(Number);
+            let y = document.getElementById("y_values").value.split(",").map(Number);
+            let a = parseFloat(document.getElementById("a").value);
+            let b = parseFloat(document.getElementById("b").value);
+            let lr = parseFloat(document.getElementById("learning_rate").value);
+            let epochs = parseInt(document.getElementById("epochs").value);
+            let sgdType = document.getElementById("sgd_type").value;
+            let batchSize = parseInt(document.getElementById("batch_size").value);
+            let shuffle = document.getElementById("shuffle_data").checked;
             history = [];
-            
-            // Compute regression updates for all epochs in advance
+
             for (let epoch = 0; epoch < epochs; epoch++) {
-                let da = 0, db = 0, loss = 0;
-                let n = x.length;
-                for (let i = 0; i < n; i++) {
-                    let y_pred = a * x[i] + b;
-                    let error = y_pred - y[i];
-                    da += (2 / n) * error * x[i];
-                    db += (2 / n) * error;
-                    loss += error * error;
+                let indices = [...Array(x.length).keys()];
+                if (shuffle && sgdType === "mini-batch") indices.sort(() => Math.random() - 0.5);
+
+                for (let i = 0; i < x.length; i += (sgdType === "batch" ? x.length : batchSize)) {
+                    let batch = indices.slice(i, i + (sgdType === "batch" ? x.length : batchSize));
+                    let da = 0, db = 0;
+                    batch.forEach(idx => {
+                        let error = (a * x[idx] + b) - y[idx];
+                        da += (2 / batch.length) * error * x[idx];
+                        db += (2 / batch.length) * error;
+                    });
+                    a -= lr * da;
+                    b -= lr * db;
                 }
-                a -= lr * da;
-                b -= lr * db;
-                loss /= n;
-                
-                let x_min = Math.min(...x), x_max = Math.max(...x);
-                let line = [{ x: x_min, y: a * x_min + b }, { x: x_max, y: a * x_max + b }];
-                history.push({ a, b, loss, line });
+                let line = [{ x: Math.min(...x), y: a * Math.min(...x) + b }, { x: Math.max(...x), y: a * Math.max(...x) + b }];
+                history.push({ a, b, loss: 0, line, points: x.map((xi, i) => ({ x: xi, y: y[i] })) });
             }
-            plotData(epochIndex);
+            plotData();
         }
 
-        // Function to move to previous epoch
-        function prevEpoch() {
-            if (epochIndex > 0) {
-                epochIndex--;
-                plotData(epochIndex);
-            }
-        }
-
-        // Function to move to next epoch
-        function nextEpoch() {
-            if (epochIndex < history.length - 1) {
-                epochIndex++;
-                plotData(epochIndex);
-            }
-        }
+        function prevEpoch() { if (epochIndex > 0) epochIndex--, plotData(); }
+        function nextEpoch() { if (epochIndex < history.length - 1) epochIndex++, plotData(); }
+        function toggleCode() { document.getElementById('code_section').classList.toggle('hidden'); document.getElementById('code_section').innerText = document.documentElement.outerHTML; }
     </script>
 </body>
 </html>
