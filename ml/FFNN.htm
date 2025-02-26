@@ -3,82 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feed-Forward Neural Network Visualization</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <title>Dynamic Feed-Forward Neural Network Visualizer</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        .node { fill: lightgray; stroke: black; stroke-width: 1px; }
-        .hidden { fill: lightyellow; }
-        .output { fill: lightblue; }
+        .node { fill: steelblue; stroke: #fff; stroke-width: 2px; }
         .link { stroke: gray; stroke-width: 2px; }
-        .label { font-size: 14px; font-weight: bold; }
+        .increase { fill: green; }
+        .decrease { fill: red; }
     </style>
 </head>
-<body>
-    <h2>Feed-Forward Neural Network Visualization</h2>
-    <svg width="600" height="400"></svg>
+<body class="p-8 bg-gray-100">
+    <h1 class="text-3xl font-bold text-center mb-4">Feed-Forward Neural Network Visualizer</h1>
+    
+    <div class="flex justify-center gap-4 mb-4">
+        <label>Inputs: <input type="number" id="numInputs" min="5" max="10" value="5" class="border p-1"></label>
+        <label>Hidden: <input type="number" id="numHidden" min="8" max="12" value="8" class="border p-1"></label>
+        <label>Outputs: <input type="number" id="numOutputs" min="2" max="4" value="2" class="border p-1"></label>
+        <button onclick="initializeNetwork()" class="bg-blue-500 text-white px-4 py-2 rounded">Generate Network</button>
+    </div>
+    
+    <div class="flex justify-center">
+        <button onclick="nextEpoch()" class="bg-green-500 text-white px-6 py-2 rounded">Next Epoch</button>
+    </div>
+    
+    <svg width="800" height="500" id="network"></svg>
+    
     <script>
-        const width = 600, height = 400;
-        const svg = d3.select("svg");
+        let inputNodes, hiddenNodes, outputNodes, links, epoch = 0;
 
-        const layers = [4, 3, 1];
-        let nodes = [], links = [];
-
-        layers.forEach((num, layerIndex) => {
-            for (let i = 0; i < num; i++) {
-                nodes.push({
-                    id: `L${layerIndex}N${i}`,
-                    layer: layerIndex,
-                    index: i,
-                    value: Math.random().toFixed(2)
+        function initializeNetwork() {
+            let numInputs = parseInt(document.getElementById("numInputs").value);
+            let numHidden = parseInt(document.getElementById("numHidden").value);
+            let numOutputs = parseInt(document.getElementById("numOutputs").value);
+            
+            inputNodes = Array.from({ length: numInputs }, (_, i) => ({ id: `I${i+1}`, layer: 0, value: Math.random() }));
+            hiddenNodes = Array.from({ length: numHidden }, (_, i) => ({ id: `H${i+1}`, layer: 1, value: Math.random() }));
+            outputNodes = Array.from({ length: numOutputs }, (_, i) => ({ id: `O${i+1}`, layer: 2, value: Math.random() }));
+            
+            links = [];
+            inputNodes.forEach(input => {
+                hiddenNodes.forEach(hidden => {
+                    links.push({ source: input.id, target: hidden.id, weight: Math.random() });
                 });
-            }
-        });
-
-        nodes.forEach(source => {
-            nodes.forEach(target => {
-                if (source.layer + 1 === target.layer) {
-                    links.push({ source: source.id, target: target.id, weight: Math.random().toFixed(2) });
-                }
             });
-        });
+            hiddenNodes.forEach(hidden => {
+                outputNodes.forEach(output => {
+                    links.push({ source: hidden.id, target: output.id, weight: Math.random() });
+                });
+            });
+            
+            updateVisualization();
+        }
 
-        const xScale = d3.scaleLinear().domain([0, layers.length - 1]).range([50, width - 50]);
-        const yScales = layers.map(num => d3.scaleLinear().domain([0, num - 1]).range([100, height - 100]));
-
-        svg.selectAll(".link")
-            .data(links)
-            .enter().append("line")
-            .attr("class", "link")
-            .attr("x1", d => xScale(nodes.find(n => n.id === d.source).layer))
-            .attr("y1", d => yScales[nodes.find(n => n.id === d.source).layer](nodes.find(n => n.id === d.source).index))
-            .attr("x2", d => xScale(nodes.find(n => n.id === d.target).layer))
-            .attr("y2", d => yScales[nodes.find(n => n.id === d.target).layer](nodes.find(n => n.id === d.target).index));
-
-        const nodeElems = svg.selectAll(".node")
-            .data(nodes)
-            .enter().append("circle")
-            .attr("class", d => `node ${d.layer === 0 ? 'input' : d.layer === layers.length - 1 ? 'output' : 'hidden'}`)
-            .attr("cx", d => xScale(d.layer))
-            .attr("cy", d => yScales[d.layer](d.index))
-            .attr("r", 20);
-
-        const labels = svg.selectAll(".label")
-            .data(nodes)
-            .enter().append("text")
-            .attr("class", "label")
-            .attr("x", d => xScale(d.layer))
-            .attr("y", d => yScales[d.layer](d.index) + 5)
-            .attr("text-anchor", "middle")
-            .text(d => d.value);
-
-        function updateValues() {
-            nodes.forEach(n => n.value = Math.random().toFixed(2));
-            links.forEach(l => l.weight = Math.random().toFixed(2));
-            labels.text(d => d.value);
+        function updateVisualization() {
+            let svg = d3.select("#network");
+            svg.selectAll("*").remove();
+            
+            let allNodes = [...inputNodes, ...hiddenNodes, ...outputNodes];
+            let xScale = d3.scaleLinear().domain([0, 2]).range([100, 700]);
+            let yScale = d3.scaleLinear().domain([0, allNodes.length]).range([50, 450]);
+            
+            allNodes.forEach((d, i) => { d.x = xScale(d.layer); d.y = yScale(i % (allNodes.length / 3)); });
+            
+            svg.selectAll(".link")
+                .data(links)
+                .enter()
+                .append("line")
+                .attr("class", "link")
+                .attr("x1", d => allNodes.find(n => n.id === d.source).x)
+                .attr("y1", d => allNodes.find(n => n.id === d.source).y)
+                .attr("x2", d => allNodes.find(n => n.id === d.target).x)
+                .attr("y2", d => allNodes.find(n => n.id === d.target).y)
+                .attr("stroke-width", d => d.weight * 3);
+            
+            let node = svg.selectAll(".node")
+                .data(allNodes)
+                .enter()
+                .append("circle")
+                .attr("class", "node")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", 20);
+            
+            svg.selectAll(".label")
+                .data(allNodes)
+                .enter()
+                .append("text")
+                .attr("x", d => d.x)
+                .attr("y", d => d.y + 5)
+                .attr("text-anchor", "middle")
+                .text(d => d.id + `\n${d.value.toFixed(2)}`);
         }
         
-        setInterval(updateValues, 1000);
+        function nextEpoch() {
+            epoch++;
+            
+            links.forEach(link => {
+                let change = (Math.random() - 0.5) * 0.1;
+                link.weight += change;
+            });
+            
+            hiddenNodes.forEach(node => {
+                let change = (Math.random() - 0.5) * 0.2;
+                node.value += change;
+            });
+            
+            outputNodes.forEach(node => {
+                let change = (Math.random() - 0.5) * 0.2;
+                node.value += change;
+            });
+            
+            d3.selectAll(".node").attr("class", d => {
+                if (d.layer === 1 || d.layer === 2) {
+                    return d.value > 0 ? "node increase" : "node decrease";
+                }
+                return "node";
+            });
+            
+            updateVisualization();
+        }
     </script>
 </body>
 </html>
