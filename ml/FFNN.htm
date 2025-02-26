@@ -1,128 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Feed-Forward Neural Network Visualizer</title>
-    <script src="https://d3js.org/d3.v6.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .node { fill: steelblue; stroke: #fff; stroke-width: 2px; }
-        .link { stroke: gray; stroke-width: 2px; }
-        .increase { fill: green; }
-        .decrease { fill: red; }
-    </style>
-</head>
-<body class="p-8 bg-gray-100">
-    <h1 class="text-3xl font-bold text-center mb-4">Feed-Forward Neural Network Visualizer</h1>
-    
-    <div class="flex justify-center gap-4 mb-4">
-        <label>Inputs: <input type="number" id="numInputs" min="5" max="10" value="5" class="border p-1"></label>
-        <label>Hidden: <input type="number" id="numHidden" min="8" max="12" value="8" class="border p-1"></label>
-        <label>Outputs: <input type="number" id="numOutputs" min="2" max="4" value="2" class="border p-1"></label>
-        <button onclick="initializeNetwork()" class="bg-blue-500 text-white px-4 py-2 rounded">Generate Network</button>
-    </div>
-    
-    <div class="flex justify-center">
-        <button onclick="nextEpoch()" class="bg-green-500 text-white px-6 py-2 rounded">Next Epoch</button>
-    </div>
-    
-    <svg width="800" height="500" id="network"></svg>
-    
-    <script>
-        let inputNodes, hiddenNodes, outputNodes, links, epoch = 0;
+import React, { useState, useEffect } from "react";
+import { Button, Input, Select, Card } from "@/components/ui";
+import { motion } from "framer-motion";
 
-        function initializeNetwork() {
-            let numInputs = parseInt(document.getElementById("numInputs").value);
-            let numHidden = parseInt(document.getElementById("numHidden").value);
-            let numOutputs = parseInt(document.getElementById("numOutputs").value);
-            
-            inputNodes = Array.from({ length: numInputs }, (_, i) => ({ id: `I${i+1}`, layer: 0, value: Math.random() }));
-            hiddenNodes = Array.from({ length: numHidden }, (_, i) => ({ id: `H${i+1}`, layer: 1, value: Math.random() }));
-            outputNodes = Array.from({ length: numOutputs }, (_, i) => ({ id: `O${i+1}`, layer: 2, value: Math.random() }));
-            
-            links = [];
-            inputNodes.forEach(input => {
-                hiddenNodes.forEach(hidden => {
-                    links.push({ source: input.id, target: hidden.id, weight: Math.random() });
-                });
-            });
-            hiddenNodes.forEach(hidden => {
-                outputNodes.forEach(output => {
-                    links.push({ source: hidden.id, target: output.id, weight: Math.random() });
-                });
-            });
-            
-            updateVisualization();
-        }
+const NeuralNetworkVisualizer = () => {
+  const [numInputs, setNumInputs] = useState(5);
+  const [numHidden, setNumHidden] = useState(8);
+  const [numOutputs, setNumOutputs] = useState(2);
+  const [inputValues, setInputValues] = useState(Array(5).fill(0.5));
+  const [outputValues, setOutputValues] = useState(Array(2).fill(0.5));
+  const [weights, setWeights] = useState([]);
+  const [epoch, setEpoch] = useState(0);
+  
+  useEffect(() => {
+    initializeWeights();
+  }, [numInputs, numHidden, numOutputs]);
 
-        function updateVisualization() {
-            let svg = d3.select("#network");
-            svg.selectAll("*").remove();
-            
-            let allNodes = [...inputNodes, ...hiddenNodes, ...outputNodes];
-            let xScale = d3.scaleLinear().domain([0, 2]).range([100, 700]);
-            let yScale = d3.scaleLinear().domain([0, allNodes.length]).range([50, 450]);
-            
-            allNodes.forEach((d, i) => { d.x = xScale(d.layer); d.y = yScale(i % (allNodes.length / 3)); });
-            
-            svg.selectAll(".link")
-                .data(links)
-                .enter()
-                .append("line")
-                .attr("class", "link")
-                .attr("x1", d => allNodes.find(n => n.id === d.source).x)
-                .attr("y1", d => allNodes.find(n => n.id === d.source).y)
-                .attr("x2", d => allNodes.find(n => n.id === d.target).x)
-                .attr("y2", d => allNodes.find(n => n.id === d.target).y)
-                .attr("stroke-width", d => d.weight * 3);
-            
-            let node = svg.selectAll(".node")
-                .data(allNodes)
-                .enter()
-                .append("circle")
-                .attr("class", "node")
-                .attr("cx", d => d.x)
-                .attr("cy", d => d.y)
-                .attr("r", 20);
-            
-            svg.selectAll(".label")
-                .data(allNodes)
-                .enter()
-                .append("text")
-                .attr("x", d => d.x)
-                .attr("y", d => d.y + 5)
-                .attr("text-anchor", "middle")
-                .text(d => d.id + `\n${d.value.toFixed(2)}`);
-        }
-        
-        function nextEpoch() {
-            epoch++;
-            
-            links.forEach(link => {
-                let change = (Math.random() - 0.5) * 0.1;
-                link.weight += change;
-            });
-            
-            hiddenNodes.forEach(node => {
-                let change = (Math.random() - 0.5) * 0.2;
-                node.value += change;
-            });
-            
-            outputNodes.forEach(node => {
-                let change = (Math.random() - 0.5) * 0.2;
-                node.value += change;
-            });
-            
-            d3.selectAll(".node").attr("class", d => {
-                if (d.layer === 1 || d.layer === 2) {
-                    return d.value > 0 ? "node increase" : "node decrease";
-                }
-                return "node";
-            });
-            
-            updateVisualization();
-        }
-    </script>
-</body>
-</html>
+  const initializeWeights = () => {
+    const newWeights = {
+      inputToHidden: Array(numInputs)
+        .fill(null)
+        .map(() => Array(numHidden).fill(0).map(() => Math.random() * 2 - 1)),
+      hiddenToOutput: Array(numHidden)
+        .fill(null)
+        .map(() => Array(numOutputs).fill(0).map(() => Math.random() * 2 - 1)),
+    };
+    setWeights(newWeights);
+  };
+
+  const updateEpoch = () => {
+    setEpoch(epoch + 1);
+    setWeights((prevWeights) => ({
+      inputToHidden: prevWeights.inputToHidden.map((row) =>
+        row.map((w) => w + (Math.random() - 0.5) * 0.1)
+      ),
+      hiddenToOutput: prevWeights.hiddenToOutput.map((row) =>
+        row.map((w) => w + (Math.random() - 0.5) * 0.1)
+      ),
+    }));
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-center">Neural Network Visualizer</h1>
+      <div className="flex space-x-4">
+        <Select value={numInputs} onChange={(e) => setNumInputs(Number(e))}>
+          {[...Array(6).keys()].map((i) => (
+            <option key={i} value={i + 5}>{i + 5} Inputs</option>
+          ))}
+        </Select>
+        <Select value={numHidden} onChange={(e) => setNumHidden(Number(e))}>
+          {[...Array(5).keys()].map((i) => (
+            <option key={i} value={i + 8}>{i + 8} Hidden</option>
+          ))}
+        </Select>
+        <Select value={numOutputs} onChange={(e) => setNumOutputs(Number(e))}>
+          {[...Array(3).keys()].map((i) => (
+            <option key={i} value={i + 2}>{i + 2} Outputs</option>
+          ))}
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-3 gap-8 justify-center items-center">
+        <div>
+          <h2 className="text-lg font-semibold">Inputs</h2>
+          {inputValues.map((val, i) => (
+            <Input
+              key={i}
+              type="number"
+              value={val}
+              onChange={(e) => {
+                const newValues = [...inputValues];
+                newValues[i] = parseFloat(e.target.value) || 0;
+                setInputValues(newValues);
+              }}
+              className="my-1"
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-col items-center">
+          <h2 className="text-lg font-semibold">Hidden Layer</h2>
+          {weights.inputToHidden && (
+            <div className="grid gap-3">
+              {weights.inputToHidden.map((row, i) => (
+                <div key={i} className="flex gap-2">
+                  {row.map((w, j) => (
+                    <motion.div
+                      key={j}
+                      className={`p-2 rounded-full text-center text-white ${w > 0 ? "bg-green-500" : "bg-red-500"}`}
+                    >
+                      {w.toFixed(2)}
+                    </motion.div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2 className="text-lg font-semibold">Outputs</h2>
+          {outputValues.map((val, i) => (
+            <Input
+              key={i}
+              type="number"
+              value={val}
+              onChange={(e) => {
+                const newValues = [...outputValues];
+                newValues[i] = parseFloat(e.target.value) || 0;
+                setOutputValues(newValues);
+              }}
+              className="my-1"
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-center space-x-4">
+        <Button onClick={updateEpoch}>Next Epoch</Button>
+        <span className="text-lg">Epoch: {epoch}</span>
+      </div>
+    </div>
+  );
+};
+
+export default NeuralNetworkVisualizer;
