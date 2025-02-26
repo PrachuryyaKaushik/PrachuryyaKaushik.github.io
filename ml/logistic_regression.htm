@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logistic Regression with SGD Variants</title>
+    <title>Logistic Regression Visualization</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -15,127 +15,148 @@
             max-width: 600px;
             margin: auto;
         }
-        input, button, select {
+        input, button {
             margin: 5px;
         }
-        .hidden { display: none; }
+        #codeContainer {
+            display: none;
+            text-align: left;
+            background: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
-    <h2>Interactive Logistic Regression with SGD Variants</h2>
-
-    <!-- User Input Fields -->
-    <label>X values: <input type="text" id="x_values" value="1,2,3,4,5"></label><br>
-    <label>Y values (0/1): <input type="text" id="y_values" value="0,0,1,1,1"></label><br>
-    <label>Initial w: <input type="number" id="w" value="0"></label>
+    <h2>Interactive Logistic Regression Visualization</h2>
+    
+    <label>X values (comma separated): <input type="text" id="x_values" value="1,2,3,4,5"></label><br>
+    <label>Y values (binary, comma separated): <input type="text" id="y_values" value="0,0,1,1,1"></label><br>
+    <label>Initial a: <input type="number" id="a" value="0"></label>
     <label>Initial b: <input type="number" id="b" value="0"></label><br>
     <label>Learning Rate: <input type="number" id="learning_rate" value="0.01" step="0.001"></label>
-    <label>Epochs: <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
-
-    <!-- Selection for SGD Type -->
-    <label>SGD Type:
-        <select id="sgd_type">
-            <option value="batch">Batch Gradient Descent</option>
-            <option value="mini-batch">Mini-Batch Gradient Descent</option>
-            <option value="stochastic">Stochastic Gradient Descent</option>
-        </select>
-    </label>
-    <label id="batch_size_label" class="hidden">Batch Size: <input type="number" id="batch_size" value="2" min="1"></label>
-    <label id="shuffle_label" class="hidden"><input type="checkbox" id="shuffle_data"> Shuffle Data</label><br>
-
-    <!-- Control Buttons -->
-    <button onclick="initializeLogisticRegression()">Start Regression</button>
+    <label>Epochs (max 10): <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
+    
+    <button onclick="initializeRegression()">Start Regression</button>
     <button onclick="prevEpoch()">Previous Epoch</button>
     <button onclick="nextEpoch()">Next Epoch</button>
     <button onclick="toggleCode()">Show Code</button>
-
+    
     <canvas id="regressionChart"></canvas>
     <p id="info"></p>
     <p id="error_message" style="color: red;"></p>
-
-    <pre id="code_section" class="hidden"></pre>
+    
+    <div id="codeContainer">
+        <pre id="codeBlock"></pre>
+    </div>
 
     <script>
-        let chart, history = [], epochIndex = 0;
-
-        document.getElementById('sgd_type').addEventListener('change', function() {
-            document.getElementById('batch_size_label').classList.toggle('hidden', this.value !== 'mini-batch');
-            document.getElementById('shuffle_label').classList.toggle('hidden', this.value !== 'mini-batch');
-        });
+        let chart;
+        let x, y, a, b, lr, epochs;
+        let epochIndex = 0;
+        let history = [];
 
         function sigmoid(z) {
             return 1 / (1 + Math.exp(-z));
         }
 
-        function plotData() {
+        function plotData(epoch) {
             let ctx = document.getElementById('regressionChart').getContext('2d');
             if (chart) chart.destroy();
-            
-            let datasets = [
-                {
-                    label: 'Data Points',
-                    data: history[0].points,
-                    backgroundColor: 'blue',
-                    type: 'scatter'
+            let data = history[epoch];
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Data Points',
+                            data: x.map((xi, i) => ({ x: xi, y: y[i] })),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: 'Logistic Curve',
+                            data: data.line,
+                            type: 'line',
+                            borderColor: 'red',
+                            borderWidth: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'X' } },
+                        y: { title: { display: true, text: 'Probability' }, min: 0, max: 1 }
+                    }
                 }
-            ];
-            
-            history.forEach((entry, i) => {
-                datasets.push({
-                    label: `Epoch ${i+1}`,
-                    data: entry.line,
-                    type: 'line',
-                    borderColor: `rgba(255, 0, 0, ${1 - i / history.length})`,
-                    borderWidth: 2,
-                    fill: false
-                });
             });
-
-            chart = new Chart(ctx, { type: 'scatter', data: { datasets }, options: { scales: { x: { title: { display: true, text: 'X' } }, y: { title: { display: true, text: 'Probability' } } } } });
-            document.getElementById("info").innerText = `Epoch: ${epochIndex + 1}, w: ${history[epochIndex].w.toFixed(4)}, b: ${history[epochIndex].b.toFixed(4)}`;
+            document.getElementById("info").innerText = `Epoch: ${epoch + 1}, a: ${data.a.toFixed(4)}, b: ${data.b.toFixed(4)}, Loss: ${data.loss.toFixed(4)}`;
         }
 
-        function initializeLogisticRegression() {
-            let x = document.getElementById("x_values").value.split(",").map(Number);
-            let y = document.getElementById("y_values").value.split(",").map(Number);
-            let w = parseFloat(document.getElementById("w").value);
-            let b = parseFloat(document.getElementById("b").value);
-            let lr = parseFloat(document.getElementById("learning_rate").value);
-            let epochs = parseInt(document.getElementById("epochs").value);
-            let sgdType = document.getElementById("sgd_type").value;
-            let batchSize = parseInt(document.getElementById("batch_size").value);
-            let shuffle = document.getElementById("shuffle_data").checked;
-            history = [];
-
-            for (let epoch = 0; epoch < epochs; epoch++) {
-                let indices = [...Array(x.length).keys()];
-                if (shuffle && sgdType === "mini-batch") indices.sort(() => Math.random() - 0.5);
-
-                for (let i = 0; i < x.length; i += (sgdType === "batch" ? x.length : batchSize)) {
-                    let batch = indices.slice(i, i + (sgdType === "batch" ? x.length : batchSize));
-                    let dw = 0, db = 0;
-                    batch.forEach(idx => {
-                        let z = w * x[idx] + b;
-                        let pred = sigmoid(z);
-                        let error = pred - y[idx];
-                        dw += (1 / batch.length) * error * x[idx];
-                        db += (1 / batch.length) * error;
-                    });
-                    w -= lr * dw;
-                    b -= lr * db;
-                }
-                let line = [{ x: Math.min(...x), y: sigmoid(w * Math.min(...x) + b) }, { x: Math.max(...x), y: sigmoid(w * Math.max(...x) + b) }];
-                history.push({ w, b, line, points: x.map((xi, i) => ({ x: xi, y: y[i] })) });
+        function initializeRegression() {
+            let errorMessage = document.getElementById("error_message");
+            errorMessage.innerText = "";
+            
+            x = document.getElementById("x_values").value.split(",").map(Number);
+            y = document.getElementById("y_values").value.split(",").map(Number);
+            
+            if (x.length !== y.length) {
+                errorMessage.innerText = "Error: Number of X and Y values must be equal.";
+                return;
             }
-            plotData();
+            
+            a = parseFloat(document.getElementById("a").value);
+            b = parseFloat(document.getElementById("b").value);
+            lr = parseFloat(document.getElementById("learning_rate").value);
+            epochs = Math.min(10, parseInt(document.getElementById("epochs").value));
+            epochIndex = 0;
+            history = [];
+            
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let da = 0, db = 0, loss = 0;
+                let n = x.length;
+                for (let i = 0; i < n; i++) {
+                    let z = a * x[i] + b;
+                    let y_pred = sigmoid(z);
+                    let error = y_pred - y[i];
+                    da += (1 / n) * error * x[i];
+                    db += (1 / n) * error;
+                    loss += -(y[i] * Math.log(y_pred) + (1 - y[i]) * Math.log(1 - y_pred));
+                }
+                a -= lr * da;
+                b -= lr * db;
+                loss /= n;
+                
+                let line = x.map(xi => ({ x: xi, y: sigmoid(a * xi + b) }));
+                history.push({ a, b, loss, line });
+            }
+            plotData(epochIndex);
         }
 
-        function prevEpoch() { if (epochIndex > 0) epochIndex--, plotData(); }
-        function nextEpoch() { if (epochIndex < history.length - 1) epochIndex++, plotData(); }
+        function prevEpoch() {
+            if (epochIndex > 0) {
+                epochIndex--;
+                plotData(epochIndex);
+            }
+        }
+
+        function nextEpoch() {
+            if (epochIndex < history.length - 1) {
+                epochIndex++;
+                plotData(epochIndex);
+            }
+        }
 
         function toggleCode() {
-            document.getElementById('code_section').classList.toggle('hidden');
-            document.getElementById('code_section').innerText = initializeLogisticRegression.toString();
+            let codeContainer = document.getElementById("codeContainer");
+            let codeBlock = document.getElementById("codeBlock");
+            if (codeContainer.style.display === "none") {
+                codeContainer.style.display = "block";
+                codeBlock.innerText = `function sigmoid(z) {\n    return 1 / (1 + Math.exp(-z));\n}\n\nfunction initializeRegression() {\n    // Logistic Regression Gradient Descent\n    for (let epoch = 0; epoch < epochs; epoch++) {\n        let da = 0, db = 0, loss = 0;\n        for (let i = 0; i < x.length; i++) {\n            let y_pred = sigmoid(a * x[i] + b);\n            let error = y_pred - y[i];\n            da += error * x[i];\n            db += error;\n            loss += -(y[i] * Math.log(y_pred) + (1 - y[i]) * Math.log(1 - y_pred));\n        }\n        a -= lr * da;\n        b -= lr * db;\n    }\n}`;
+            } else {
+                codeContainer.style.display = "none";
+            }
         }
     </script>
 </body>
