@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistic Regression with SGD Variants</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        canvas {
+            max-width: 600px;
+            margin: auto;
+        }
+        input, button, select {
+            margin: 5px;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h2>Interactive Logistic Regression with SGD Variants</h2>
+
+    <!-- User Input Fields -->
+    <label>X values: <input type="text" id="x_values" value="1,2,3,4,5"></label><br>
+    <label>Y values (0/1): <input type="text" id="y_values" value="0,0,1,1,1"></label><br>
+    <label>Initial w: <input type="number" id="w" value="0"></label>
+    <label>Initial b: <input type="number" id="b" value="0"></label><br>
+    <label>Learning Rate: <input type="number" id="learning_rate" value="0.01" step="0.001"></label>
+    <label>Epochs: <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
+
+    <!-- Selection for SGD Type -->
+    <label>SGD Type:
+        <select id="sgd_type">
+            <option value="batch">Batch Gradient Descent</option>
+            <option value="mini-batch">Mini-Batch Gradient Descent</option>
+            <option value="stochastic">Stochastic Gradient Descent</option>
+        </select>
+    </label>
+    <label id="batch_size_label" class="hidden">Batch Size: <input type="number" id="batch_size" value="2" min="1"></label>
+    <label id="shuffle_label" class="hidden"><input type="checkbox" id="shuffle_data"> Shuffle Data</label><br>
+
+    <!-- Control Buttons -->
+    <button onclick="initializeLogisticRegression()">Start Regression</button>
+    <button onclick="prevEpoch()">Previous Epoch</button>
+    <button onclick="nextEpoch()">Next Epoch</button>
+    <button onclick="toggleCode()">Show Code</button>
+
+    <canvas id="regressionChart"></canvas>
+    <p id="info"></p>
+    <p id="error_message" style="color: red;"></p>
+
+    <pre id="code_section" class="hidden"></pre>
+
+    <script>
+        let chart, history = [], epochIndex = 0;
+
+        document.getElementById('sgd_type').addEventListener('change', function() {
+            document.getElementById('batch_size_label').classList.toggle('hidden', this.value !== 'mini-batch');
+            document.getElementById('shuffle_label').classList.toggle('hidden', this.value !== 'mini-batch');
+        });
+
+        function sigmoid(z) {
+            return 1 / (1 + Math.exp(-z));
+        }
+
+        function plotData() {
+            let ctx = document.getElementById('regressionChart').getContext('2d');
+            if (chart) chart.destroy();
+            
+            let datasets = [
+                {
+                    label: 'Data Points',
+                    data: history[0].points,
+                    backgroundColor: 'blue',
+                    type: 'scatter'
+                }
+            ];
+            
+            history.forEach((entry, i) => {
+                datasets.push({
+                    label: `Epoch ${i+1}`,
+                    data: entry.line,
+                    type: 'line',
+                    borderColor: `rgba(255, 0, 0, ${1 - i / history.length})`,
+                    borderWidth: 2,
+                    fill: false
+                });
+            });
+
+            chart = new Chart(ctx, { type: 'scatter', data: { datasets }, options: { scales: { x: { title: { display: true, text: 'X' } }, y: { title: { display: true, text: 'Probability' } } } } });
+            document.getElementById("info").innerText = `Epoch: ${epochIndex + 1}, w: ${history[epochIndex].w.toFixed(4)}, b: ${history[epochIndex].b.toFixed(4)}`;
+        }
+
+        function initializeLogisticRegression() {
+            let x = document.getElementById("x_values").value.split(",").map(Number);
+            let y = document.getElementById("y_values").value.split(",").map(Number);
+            let w = parseFloat(document.getElementById("w").value);
+            let b = parseFloat(document.getElementById("b").value);
+            let lr = parseFloat(document.getElementById("learning_rate").value);
+            let epochs = parseInt(document.getElementById("epochs").value);
+            let sgdType = document.getElementById("sgd_type").value;
+            let batchSize = parseInt(document.getElementById("batch_size").value);
+            let shuffle = document.getElementById("shuffle_data").checked;
+            history = [];
+
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let indices = [...Array(x.length).keys()];
+                if (shuffle && sgdType === "mini-batch") indices.sort(() => Math.random() - 0.5);
+
+                for (let i = 0; i < x.length; i += (sgdType === "batch" ? x.length : batchSize)) {
+                    let batch = indices.slice(i, i + (sgdType === "batch" ? x.length : batchSize));
+                    let dw = 0, db = 0;
+                    batch.forEach(idx => {
+                        let z = w * x[idx] + b;
+                        let pred = sigmoid(z);
+                        let error = pred - y[idx];
+                        dw += (1 / batch.length) * error * x[idx];
+                        db += (1 / batch.length) * error;
+                    });
+                    w -= lr * dw;
+                    b -= lr * db;
+                }
+                let line = [{ x: Math.min(...x), y: sigmoid(w * Math.min(...x) + b) }, { x: Math.max(...x), y: sigmoid(w * Math.max(...x) + b) }];
+                history.push({ w, b, line, points: x.map((xi, i) => ({ x: xi, y: y[i] })) });
+            }
+            plotData();
+        }
+
+        function prevEpoch() { if (epochIndex > 0) epochIndex--, plotData(); }
+        function nextEpoch() { if (epochIndex < history.length - 1) epochIndex++, plotData(); }
+
+        function toggleCode() {
+            document.getElementById('code_section').classList.toggle('hidden');
+            document.getElementById('code_section').innerText = initializeLogisticRegression.toString();
+        }
+    </script>
+</body>
+</html>
