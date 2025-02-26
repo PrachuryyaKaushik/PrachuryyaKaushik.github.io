@@ -1,191 +1,276 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Feed Forward Neural Network Visualization</title>
+    <title>Feed Forward Neural Network Visualizer</title>
     <style>
-        #network-container {
-            position: relative;
-            border: 1px solid #ccc;
-            margin-top: 20px;
-        }
-        .node {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background-color: #eee;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .edge {
-            position: absolute;
-            border-bottom: 1px solid #aaa;
-        }
-        #code-container {
-            margin-top: 20px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            display: none;
-            white-space: pre-wrap;
-        }
+        body { font-family: Arial, sans-serif; }
+        .controls { margin-bottom: 20px; }
+        .network-container { position: relative; width: 800px; height: 400px; border: 1px solid #ccc; margin-bottom: 20px; }
+        .node { position: absolute; width: 30px; height: 30px; border-radius: 50%; background-color: #eee; border: 1px solid #333; text-align: center; line-height: 30px; display: flex; justify-content: center; align-items: center; font-size: 0.8em; }
+        .input-node { background-color: #cce5ff; }
+        .hidden-node { background-color: #ffe0b2; }
+        .output-node { background-color: #ccffcc; }
+        .edge { position: absolute; border-bottom: 1px dashed #777; }
+        .value-input { width: 50px; margin: 5px; }
+        #algorithm-code { white-space: pre-line; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9; display: none; }
+        .button-container button { margin: 5px; padding: 8px 15px; border: none; border-radius: 5px; background-color: #007bff; color: white; cursor: pointer; }
+        .button-container button:hover { background-color: #0056b3; }
+        .config-section, .values-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .config-section h3, .values-section h3, #algorithm-code h3 { margin-top: 0; }
     </style>
 </head>
 <body>
-    <h1>Feed Forward Neural Network Visualization</h1>
+    <h1>Feed Forward Neural Network Visualizer</h1>
 
-    <div>
-        <label for="input-nodes">Input Nodes (2-8):</label>
-        <input type="number" id="input-nodes" min="2" max="8" value="2">
-    </div>
-    <div>
-        <label for="hidden-nodes">Hidden Nodes (2-10):</label>
-        <input type="number" id="hidden-nodes" min="2" max="10" value="3">
-    </div>
-    <div>
-        <label for="output-nodes">Output Nodes (2-4):</label>
-        <input type="number" id="output-nodes" min="2" max="4" value="2">
-    </div>
-    <div>
-      <label>Input Values:</label>
-      <div id="input-values"></div>
-    </div>
-    <div>
-      <label>Target Output Values:</label>
-      <div id="target-values"></div>
-    </div>
-    <button onclick="createNetwork()">Create Network</button>
-    <button onclick="trainNetwork()">Train Network</button>
-    <button onclick="showCode()">Show Algorithm Code</button>
+    <div class="controls">
+        <div class="config-section">
+            <h3>Network Configuration</h3>
+            <label for="inputNodes">Input Nodes (2-8):</label>
+            <input type="number" id="inputNodes" min="2" max="8" value="3"><br>
 
-    <div id="network-container"></div>
-    <div id="code-container"></div>
+            <label for="hiddenNodes">Hidden Nodes (2-10):</label>
+            <input type="number" id="hiddenNodes" min="2" max="10" value="4"><br>
+
+            <label for="outputNodes">Output Nodes (2-4):</label>
+            <input type="number" id="outputNodes" min="2" max="4" value="2"><br>
+
+            <button onclick="setupNetwork()">Construct Network</button>
+        </div>
+
+        <div class="values-section">
+            <h3>Input & Output Values</h3>
+            <div id="inputValuesControls">
+                </div>
+            <div id="outputValuesControls">
+                </div>
+        </div>
+
+        <div class="button-container">
+            <button onclick="feedForwardEpoch()">Epoch</button>
+            <button onclick="showAlgorithm()">Show Algorithm Code</button>
+            <button onclick="hideAlgorithm()" id="hideAlgorithmBtn" style="display: none;">Hide Algorithm Code</button>
+        </div>
+    </div>
+
+    <div class="network-container" id="networkCanvas">
+        </div>
+
+    <div id="algorithm-code">
+        <h3>Feed Forward Algorithm (Simplified)</h3>
+        <pre>
+        <code>
+        // Initialize weights and biases randomly
+        weights_input_hidden = random_matrix(inputNodes, hiddenNodes)
+        weights_hidden_output = random_matrix(hiddenNodes, outputNodes)
+        bias_hidden = random_vector(hiddenNodes)
+        bias_output = random_vector(outputNodes)
+
+        function feedForward(inputValues):
+            // Hidden layer calculation
+            hidden_layer_input = dot_product(inputValues, weights_input_hidden) + bias_hidden
+            hidden_layer_output = sigmoid(hidden_layer_input) // Activation function
+
+            // Output layer calculation
+            output_layer_input = dot_product(hidden_layer_output, weights_hidden_output) + bias_output
+            output_layer_output = sigmoid(output_layer_input) // Activation function
+
+            return output_layer_output
+
+        function epoch():
+            // For visualization purpose, we are simulating learning.
+            // In real scenario, this would involve backpropagation and weight updates.
+
+            current_outputs = feedForward(current_inputs)
+
+            // In a real learning scenario:
+            // Calculate error (loss)
+            // Adjust weights and biases to reduce error (using backpropagation)
+
+            // For visualization, we might just nudge the output values
+            // towards some target or show a change.
+        </code>
+        </pre>
+    </div>
 
     <script>
-        const networkContainer = document.getElementById('network-container');
-        const inputValuesDiv = document.getElementById('input-values');
-        const targetValuesDiv = document.getElementById('target-values');
-        let inputNodesCount = 2;
-        let hiddenNodesCount = 3;
-        let outputNodesCount = 2;
-        let inputValues = [];
-        let targetValues = [];
-        let weightsInputHidden = [];
-        let weightsHiddenOutput = [];
-        let epochs = 0;
+        const networkCanvas = document.getElementById('networkCanvas');
+        const inputNodesInput = document.getElementById('inputNodes');
+        const hiddenNodesInput = document.getElementById('hiddenNodes');
+        const outputNodesInput = document.getElementById('outputNodes');
+        const algorithmCodeDiv = document.getElementById('algorithm-code');
+        const hideAlgorithmButton = document.getElementById('hideAlgorithmBtn');
+        const inputValuesControls = document.getElementById('inputValuesControls');
+        const outputValuesControls = document.getElementById('outputValuesControls');
 
-        function updateInputOutputFields(){
-          inputValuesDiv.innerHTML = "";
-          targetValuesDiv.innerHTML = "";
-          for(let i = 0; i < inputNodesCount; i++){
-            inputValuesDiv.innerHTML += `<label>Input <span class="math-inline">\{i\+1\}\:</label\><input type\="number" id\="input\-</span>{i}" value="0"><br>`;
-          }
-          for(let i = 0; i < outputNodesCount; i++){
-            targetValuesDiv.innerHTML += `<label>Target <span class="math-inline">\{i\+1\}\:</label\><input type\="number" id\="target\-</span>{i}" value="1"><br>`;
-          }
-        }
+        let inputNodesCount = parseInt(inputNodesInput.value);
+        let hiddenNodesCount = parseInt(hiddenNodesInput.value);
+        let outputNodesCount = parseInt(outputNodesInput.value);
+        let inputNodes = [];
+        let hiddenNodes = [];
+        let outputNodes = [];
+        let edges = [];
+        let epochCount = 0;
 
-        function createNetwork() {
-            inputNodesCount = parseInt(document.getElementById('input-nodes').value);
-            hiddenNodesCount = parseInt(document.getElementById('hidden-nodes').value);
-            outputNodesCount = parseInt(document.getElementById('output-nodes').value);
-            networkContainer.innerHTML = '';
-            inputValues = [];
-            targetValues = [];
-            weightsInputHidden = [];
-            weightsHiddenOutput = [];
-            epochs = 0;
-            updateInputOutputFields();
-            for(let i = 0; i < inputNodesCount; i++){
-              inputValues.push(0);
-            }
-            for(let i = 0; i < outputNodesCount; i++){
-              targetValues.push(1);
-            }
+        function setupNetwork() {
+            epochCount = 0;
+            inputNodesCount = parseInt(inputNodesInput.value);
+            hiddenNodesCount = parseInt(hiddenNodesInput.value);
+            outputNodesCount = parseInt(outputNodesInput.value);
+
+            networkCanvas.innerHTML = ''; // Clear previous network
+            inputNodes = [];
+            hiddenNodes = [];
+            outputNodes = [];
+            edges = [];
+
+            // Generate Input Value Inputs
+            inputValuesControls.innerHTML = '<h3>Input Values</h3>';
             for (let i = 0; i < inputNodesCount; i++) {
-                weightsInputHidden[i] = [];
-                for (let j = 0; j < hiddenNodesCount; j++) {
-                    weightsInputHidden[i][j] = Math.random() * 0.4 - 0.2;
-                }
+                inputValuesControls.innerHTML += `<label for="inputValue${i}">Input ${i + 1}:</label>
+                                                 <input type="number" id="inputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}"><br>`;
+            }
+             // Generate Output Value Inputs
+             outputValuesControls.innerHTML = '<h3>Output Values (Desired)</h3>';
+             for (let i = 0; i < outputNodesCount; i++) {
+                 outputValuesControls.innerHTML += `<label for="outputValue${i}">Output ${i + 1}:</label>
+                                                  <input type="number" id="outputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}"><br>`;
+             }
+
+
+            // Create Nodes
+            const canvasWidth = networkCanvas.offsetWidth;
+            const canvasHeight = networkCanvas.offsetHeight;
+            const nodeSpacingX = canvasWidth / 3;
+            const inputNodeSpacingY = canvasHeight / (inputNodesCount + 1);
+            const hiddenNodeSpacingY = canvasHeight / (hiddenNodesCount + 1);
+            const outputNodeSpacingY = canvasHeight / (outputNodesCount + 1);
+
+            for (let i = 0; i < inputNodesCount; i++) {
+                inputNodes.push(createNode('input', i, nodeSpacingX * 0.5, inputNodeSpacingY * (i + 1)));
             }
             for (let i = 0; i < hiddenNodesCount; i++) {
-                weightsHiddenOutput[i] = [];
-                for (let j = 0; j < outputNodesCount; j++) {
-                    weightsHiddenOutput[i][j] = Math.random() * 0.4 - 0.2;
+                hiddenNodes.push(createNode('hidden', i, nodeSpacingX * 1.5, hiddenNodeSpacingY * (i + 1)));
+            }
+            for (let i = 0; i < outputNodesCount; i++) {
+                outputNodes.push(createNode('output', i, nodeSpacingX * 2.5, outputNodeSpacingY * (i + 1)));
+            }
+
+            // Create Edges
+            for (let inputNode of inputNodes) {
+                for (let hiddenNode of hiddenNodes) {
+                    edges.push(createEdge(inputNode, hiddenNode));
                 }
             }
+            for (let hiddenNode of hiddenNodes) {
+                for (let outputNode of outputNodes) {
+                    edges.push(createEdge(hiddenNode, outputNode));
+                }
+            }
+
             drawNetwork();
         }
 
-        function drawNetwork() {
-            networkContainer.innerHTML = '';
-            const containerWidth = networkContainer.offsetWidth;
-            const containerHeight = networkContainer.offsetHeight;
-            const inputNodeY = containerHeight * 0.2;
-            const hiddenNodeY = containerHeight * 0.5;
-            const outputNodeY = containerHeight * 0.8;
-
-            for (let i = 0; i < inputNodesCount; i++) {
-                const x = (containerWidth / (inputNodesCount + 1)) * (i + 1);
-                createNode(x, inputNodeY, 'input-' + i);
-            }
-            for (let i = 0; i < hiddenNodesCount; i++) {
-                const x = (containerWidth / (hiddenNodesCount + 1)) * (i + 1);
-                createNode(x, hiddenNodeY, 'hidden-' + i);
-            }
-            for (let i = 0; i < outputNodesCount; i++) {
-                const x = (containerWidth / (outputNodesCount + 1)) * (i + 1);
-                createNode(x, outputNodeY, 'output-' + i);
-            }
-
-            for (let i = 0; i < inputNodesCount; i++) {
-                for (let j = 0; j < hiddenNodesCount; j++) {
-                    createEdge('input-' + i, 'hidden-' + j);
-                }
-            }
-            for (let i = 0; i < hiddenNodesCount; i++) {
-                for (let j = 0; j < outputNodesCount; j++) {
-                    createEdge('hidden-' + i, 'output-' + j);
-                }
-            }
-        }
-
-        function createNode(x, y, id) {
+        function createNode(type, index, x, y) {
             const node = document.createElement('div');
-            node.className = 'node';
-            node.id = id;
-            node.style.left = (x - 15) + 'px';
-            node.style.top = (y - 15) + 'px';
-            networkContainer.appendChild(node);
+            node.classList.add('node');
+            if (type === 'input') node.classList.add('input-node');
+            else if (type === 'hidden') node.classList.add('hidden-node');
+            else if (type === 'output') node.classList.add('output-node');
+            node.style.left = `${x - 15}px`;
+            node.style.top = `${y - 15}px`;
+            node.textContent = '?'; // Initial value
+            networkCanvas.appendChild(node);
+            return { element: node, type: type, index: index, x: x, y: y, value: 0 }; // Value for simulation
         }
 
-        function createEdge(fromId, toId) {
-            const fromNode = document.getElementById(fromId);
-            const toNode = document.getElementById(toId);
-            const fromRect = fromNode.getBoundingClientRect();
-            const toRect = toNode.getBoundingClientRect();
+        function createEdge(fromNode, toNode) {
             const edge = document.createElement('div');
-            edge.className = 'edge';
-            edge.style.left = (fromRect.left + 15 - networkContainer.getBoundingClientRect().left) + 'px';
-            edge.style.top = (fromRect.top + 15 - networkContainer.getBoundingClientRect().top) + 'px';
-            edge.style.width = Math.sqrt(Math.pow(toRect.left - fromRect.left, 2) + Math.pow(toRect.top - fromRect.top, 2)) + 'px';
-            edge.style.transform = `rotate(${Math.atan2(toRect.top - fromRect.top, toRect.left - fromRect.left)}rad)`;
-            networkContainer.appendChild(edge);
+            edge.classList.add('edge');
+            edge.style.left = `${fromNode.x}px`;
+            edge.style.top = `${Math.min(fromNode.y, toNode.y)}px`;
+            edge.style.width = `${Math.abs(toNode.x - fromNode.x)}px`;
+            edge.style.height = `${Math.abs(toNode.y - fromNode.y)}px`;
+            const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x) * (180 / Math.PI);
+            edge.style.transformOrigin = '0 0';
+            edge.style.transform = `rotate(${angle}deg)`;
+            networkCanvas.appendChild(edge);
+            return edge;
         }
 
-        function trainNetwork() {
-          if (epochs >= 10) return;
-          epochs++;
-          for(let i = 0; i < inputNodesCount; i++){
-            inputValues[i] = parseFloat(document.getElementById(`input-${i}`).value);
-          }
-          for(let i = 0; i < outputNodesCount; i++){
-            targetValues[i] = parseFloat(document.getElementById(`target-${i}`).value);
-          }
-          let hiddenLayerOutput = [];
-          for (let j = 0; j < hiddenNodesCount; j++) {
-              let sum = 0;
-              for (let i = 0; i < inputNodesCount; i++) {
-                  sum += inputValues[i] * weightsInputHidden[i][j];
-              }
-              hiddenLayerOutput[j] = sigmoid(sum);
+        function drawNetwork() {
+            // Ensure edges are drawn behind nodes by re-appending nodes
+            inputNodes.forEach(node => networkCanvas.appendChild(node.element));
+            hiddenNodes.forEach(node => networkCanvas.appendChild(node.element));
+            outputNodes.forEach(node => networkCanvas.appendChild(node.element));
+        }
+
+        function feedForwardEpoch() {
+            if (inputNodes.length === 0) return; // Network not set up
+
+            epochCount++;
+            let currentInputValues = [];
+            for (let i = 0; i < inputNodesCount; i++) {
+                currentInputValues.push(parseFloat(document.getElementById(`inputValue${i}`).value));
+                inputNodes[i].value = currentInputValues[i];
+                inputNodes[i].element.textContent = inputNodes[i].value.toFixed(2);
+            }
+
+            // Simple Forward Pass Simulation (No actual weights or biases for simplicity in visualization)
+            let hiddenLayerOutputs = [];
+            for (let i = 0; i < hiddenNodesCount; i++) {
+                let sum = 0;
+                for (let j = 0; j < inputNodesCount; j++) {
+                    sum += inputNodes[j].value * Math.random(); // Simulate weights
+                }
+                let hiddenOutput = sigmoid(sum + Math.random()); // Simulate bias and activation
+                hiddenNodes[i].value = hiddenOutput;
+                hiddenNodes[i].element.textContent = hiddenNodes[i].value.toFixed(2);
+                hiddenLayerOutputs.push(hiddenOutput);
+            }
+
+            let outputLayerOutputs = [];
+            for (let i = 0; i < outputNodesCount; i++) {
+                let sum = 0;
+                for (let j = 0; j < hiddenNodesCount; j++) {
+                    sum += hiddenNodes[j].value * Math.random(); // Simulate weights
+                }
+                let outputValue = sigmoid(sum + Math.random()); // Simulate bias and activation
+                outputNodes[i].value = outputValue;
+                outputNodes[i].element.textContent = outputNodes[i].value.toFixed(2);
+                outputLayerOutputs.push(outputValue);
+            }
+
+            // Simulate "learning" by slightly adjusting input/output values for next epoch - very basic for visualization
+            if (epochCount < 10) { // Limit epochs for visualization
+                for (let i = 0; i < inputNodesCount; i++) {
+                    let currentValue = parseFloat(document.getElementById(`inputValue${i}`).value);
+                    document.getElementById(`inputValue${i}`).value = (currentValue + (Math.random() * 0.2 - 0.1)).toFixed(2); // Nudge input
+                }
+                 for (let i = 0; i < outputNodesCount; i++) {
+                    let currentValue = parseFloat(document.getElementById(`outputValue${i}`).value);
+                    document.getElementById(`outputValue${i}`).value = (currentValue + (Math.random() * 0.2 - 0.1)).toFixed(2); // Nudge output - desired value
+                }
+            }
+        }
+
+        function sigmoid(x) {
+            return 1 / (1 + Math.exp(-x));
+        }
+
+        function showAlgorithm() {
+            algorithmCodeDiv.style.display = 'block';
+            hideAlgorithmButton.style.display = 'inline-block';
+            document.querySelector('.button-container button[onclick="showAlgorithm()"]').style.display = 'none';
+        }
+
+        function hideAlgorithm() {
+            algorithmCodeDiv.style.display = 'none';
+            hideAlgorithmButton.style.display = 'none';
+            document.querySelector('.button-container button[onclick="showAlgorithm()"]').style.display = 'inline-block';
+        }
+
+        // Initial setup (optional - can start with blank network and require user to click 'Construct')
+        // setupNetwork();
+    </script>
+</body>
+</html>
