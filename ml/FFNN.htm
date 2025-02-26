@@ -1,125 +1,191 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neural Network Visualizer</title>
+    <title>Feed Forward Neural Network Visualization</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        .container { display: flex; justify-content: center; align-items: center; margin-top: 20px; }
-        .column { margin: 20px; position: relative; }
-        .node { width: 60px; height: 60px; line-height: 60px; text-align: center; border-radius: 50%; display: block; margin: 20px auto; font-size: 14px; }
-        .red { background-color: red; color: white; }
-        .green { background-color: green; color: white; }
-        .input, .output { width: 80px; margin: 5px; }
-        .canvas-container { position: absolute; top: 0; left: 0; z-index: -1; }
+        #network-container {
+            position: relative;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        .node {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #eee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .edge {
+            position: absolute;
+            border-bottom: 1px solid #aaa;
+        }
+        #code-container {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            display: none;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
-    <h1>Neural Network Visualizer</h1>
-    <label>Number of Inputs:</label>
-    <input type="number" id="numInputs" min="5" max="10" value="5">
-    <label>Number of Hidden Units:</label>
-    <input type="number" id="numHidden" min="8" max="12" value="8">
-    <label>Number of Outputs:</label>
-    <input type="number" id="numOutputs" min="2" max="4" value="2">
-    <button onclick="initializeNetwork()">Set Network</button>
-    
-    <div class="container">
-        <canvas id="networkCanvas" class="canvas-container"></canvas>
-        <div id="inputLayer" class="column"></div>
-        <div id="hiddenLayer" class="column"></div>
-        <div id="outputLayer" class="column"></div>
+    <h1>Feed Forward Neural Network Visualization</h1>
+
+    <div>
+        <label for="input-nodes">Input Nodes (2-8):</label>
+        <input type="number" id="input-nodes" min="2" max="8" value="2">
     </div>
-    <button onclick="nextEpoch()">Next Epoch</button>
-    <p>Epoch: <span id="epoch">0</span></p>
-    
+    <div>
+        <label for="hidden-nodes">Hidden Nodes (2-10):</label>
+        <input type="number" id="hidden-nodes" min="2" max="10" value="3">
+    </div>
+    <div>
+        <label for="output-nodes">Output Nodes (2-4):</label>
+        <input type="number" id="output-nodes" min="2" max="4" value="2">
+    </div>
+    <div>
+      <label>Input Values:</label>
+      <div id="input-values"></div>
+    </div>
+    <div>
+      <label>Target Output Values:</label>
+      <div id="target-values"></div>
+    </div>
+    <button onclick="createNetwork()">Create Network</button>
+    <button onclick="trainNetwork()">Train Network</button>
+    <button onclick="showCode()">Show Algorithm Code</button>
+
+    <div id="network-container"></div>
+    <div id="code-container"></div>
+
     <script>
-        let weights = { inputToHidden: [], hiddenToOutput: [] };
-        let values = { input: [], hidden: [], output: [] };
-        let epoch = 0;
-        let canvas, ctx;
+        const networkContainer = document.getElementById('network-container');
+        const inputValuesDiv = document.getElementById('input-values');
+        const targetValuesDiv = document.getElementById('target-values');
+        let inputNodesCount = 2;
+        let hiddenNodesCount = 3;
+        let outputNodesCount = 2;
+        let inputValues = [];
+        let targetValues = [];
+        let weightsInputHidden = [];
+        let weightsHiddenOutput = [];
+        let epochs = 0;
 
-        function initializeNetwork() {
-            let numInputs = parseInt(document.getElementById("numInputs").value);
-            let numHidden = parseInt(document.getElementById("numHidden").value);
-            let numOutputs = parseInt(document.getElementById("numOutputs").value);
-            epoch = 0;
-            document.getElementById("epoch").innerText = epoch;
-            
-            weights.inputToHidden = Array.from({ length: numInputs }, () => Array(numHidden).fill(0).map(() => Math.random() * 2 - 1));
-            weights.hiddenToOutput = Array.from({ length: numHidden }, () => Array(numOutputs).fill(0).map(() => Math.random() * 2 - 1));
-            
-            values.input = Array(numInputs).fill(1);
-            values.hidden = Array(numHidden).fill(0);
-            values.output = Array(numOutputs).fill(0);
-            
-            renderNetwork(numInputs, numHidden, numOutputs);
+        function updateInputOutputFields(){
+          inputValuesDiv.innerHTML = "";
+          targetValuesDiv.innerHTML = "";
+          for(let i = 0; i < inputNodesCount; i++){
+            inputValuesDiv.innerHTML += `<label>Input <span class="math-inline">\{i\+1\}\:</label\><input type\="number" id\="input\-</span>{i}" value="0"><br>`;
+          }
+          for(let i = 0; i < outputNodesCount; i++){
+            targetValuesDiv.innerHTML += `<label>Target <span class="math-inline">\{i\+1\}\:</label\><input type\="number" id\="target\-</span>{i}" value="1"><br>`;
+          }
         }
 
-        function renderNetwork(numInputs, numHidden, numOutputs) {
-            let inputLayer = document.getElementById("inputLayer");
-            let hiddenLayer = document.getElementById("hiddenLayer");
-            let outputLayer = document.getElementById("outputLayer");
-            
-            inputLayer.innerHTML = '<h3>Inputs</h3>' + generateNodes(numInputs, "input", values.input);
-            hiddenLayer.innerHTML = '<h3>Hidden</h3>' + generateNodes(numHidden, "hidden", values.hidden);
-            outputLayer.innerHTML = '<h3>Outputs</h3>' + generateNodes(numOutputs, "output", values.output);
-            
-            drawConnections(numInputs, numHidden, numOutputs);
-        }
-
-        function generateNodes(count, type, vals) {
-            let html = '';
-            for (let i = 0; i < count; i++) {
-                html += `<div class="node ${type}" style="background-color: ${vals[i] >= 0 ? 'green' : 'red'}">${vals[i].toFixed(2)}</div>`;
+        function createNetwork() {
+            inputNodesCount = parseInt(document.getElementById('input-nodes').value);
+            hiddenNodesCount = parseInt(document.getElementById('hidden-nodes').value);
+            outputNodesCount = parseInt(document.getElementById('output-nodes').value);
+            networkContainer.innerHTML = '';
+            inputValues = [];
+            targetValues = [];
+            weightsInputHidden = [];
+            weightsHiddenOutput = [];
+            epochs = 0;
+            updateInputOutputFields();
+            for(let i = 0; i < inputNodesCount; i++){
+              inputValues.push(0);
             }
-            return html;
+            for(let i = 0; i < outputNodesCount; i++){
+              targetValues.push(1);
+            }
+            for (let i = 0; i < inputNodesCount; i++) {
+                weightsInputHidden[i] = [];
+                for (let j = 0; j < hiddenNodesCount; j++) {
+                    weightsInputHidden[i][j] = Math.random() * 0.4 - 0.2;
+                }
+            }
+            for (let i = 0; i < hiddenNodesCount; i++) {
+                weightsHiddenOutput[i] = [];
+                for (let j = 0; j < outputNodesCount; j++) {
+                    weightsHiddenOutput[i][j] = Math.random() * 0.4 - 0.2;
+                }
+            }
+            drawNetwork();
         }
 
-        function drawConnections(numInputs, numHidden, numOutputs) {
-            canvas = document.getElementById("networkCanvas");
-            ctx = canvas.getContext("2d");
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            let inputNodes = document.querySelectorAll(".input");
-            let hiddenNodes = document.querySelectorAll(".hidden");
-            let outputNodes = document.querySelectorAll(".output");
-            
-            connectLayers(inputNodes, hiddenNodes, weights.inputToHidden);
-            connectLayers(hiddenNodes, outputNodes, weights.hiddenToOutput);
+        function drawNetwork() {
+            networkContainer.innerHTML = '';
+            const containerWidth = networkContainer.offsetWidth;
+            const containerHeight = networkContainer.offsetHeight;
+            const inputNodeY = containerHeight * 0.2;
+            const hiddenNodeY = containerHeight * 0.5;
+            const outputNodeY = containerHeight * 0.8;
+
+            for (let i = 0; i < inputNodesCount; i++) {
+                const x = (containerWidth / (inputNodesCount + 1)) * (i + 1);
+                createNode(x, inputNodeY, 'input-' + i);
+            }
+            for (let i = 0; i < hiddenNodesCount; i++) {
+                const x = (containerWidth / (hiddenNodesCount + 1)) * (i + 1);
+                createNode(x, hiddenNodeY, 'hidden-' + i);
+            }
+            for (let i = 0; i < outputNodesCount; i++) {
+                const x = (containerWidth / (outputNodesCount + 1)) * (i + 1);
+                createNode(x, outputNodeY, 'output-' + i);
+            }
+
+            for (let i = 0; i < inputNodesCount; i++) {
+                for (let j = 0; j < hiddenNodesCount; j++) {
+                    createEdge('input-' + i, 'hidden-' + j);
+                }
+            }
+            for (let i = 0; i < hiddenNodesCount; i++) {
+                for (let j = 0; j < outputNodesCount; j++) {
+                    createEdge('hidden-' + i, 'output-' + j);
+                }
+            }
         }
 
-        function connectLayers(fromNodes, toNodes, weightMatrix) {
-            fromNodes.forEach((from, i) => {
-                let fromRect = from.getBoundingClientRect();
-                toNodes.forEach((to, j) => {
-                    let toRect = to.getBoundingClientRect();
-                    let weight = weightMatrix[i][j];
-                    ctx.beginPath();
-                    ctx.moveTo(fromRect.left + fromRect.width / 2, fromRect.top + fromRect.height / 2);
-                    ctx.lineTo(toRect.left + toRect.width / 2, toRect.top + toRect.height / 2);
-                    ctx.strokeStyle = weight >= 0 ? "green" : "red";
-                    ctx.lineWidth = Math.abs(weight * 2);
-                    ctx.stroke();
-                });
-            });
+        function createNode(x, y, id) {
+            const node = document.createElement('div');
+            node.className = 'node';
+            node.id = id;
+            node.style.left = (x - 15) + 'px';
+            node.style.top = (y - 15) + 'px';
+            networkContainer.appendChild(node);
         }
 
-        function nextEpoch() {
-            epoch++;
-            document.getElementById("epoch").innerText = epoch;
-            
-            values.hidden = values.hidden.map(() => Math.random() * 2 - 1);
-            values.output = values.output.map(() => Math.random() * 2 - 1);
-            
-            weights.inputToHidden = weights.inputToHidden.map(row => row.map(w => w + (Math.random() - 0.5) * 0.1));
-            weights.hiddenToOutput = weights.hiddenToOutput.map(row => row.map(w => w + (Math.random() - 0.5) * 0.1));
-            
-            renderNetwork(weights.inputToHidden.length, weights.inputToHidden[0].length, weights.hiddenToOutput[0].length);
+        function createEdge(fromId, toId) {
+            const fromNode = document.getElementById(fromId);
+            const toNode = document.getElementById(toId);
+            const fromRect = fromNode.getBoundingClientRect();
+            const toRect = toNode.getBoundingClientRect();
+            const edge = document.createElement('div');
+            edge.className = 'edge';
+            edge.style.left = (fromRect.left + 15 - networkContainer.getBoundingClientRect().left) + 'px';
+            edge.style.top = (fromRect.top + 15 - networkContainer.getBoundingClientRect().top) + 'px';
+            edge.style.width = Math.sqrt(Math.pow(toRect.left - fromRect.left, 2) + Math.pow(toRect.top - fromRect.top, 2)) + 'px';
+            edge.style.transform = `rotate(${Math.atan2(toRect.top - fromRect.top, toRect.left - fromRect.left)}rad)`;
+            networkContainer.appendChild(edge);
         }
-    </script>
-</body>
-</html>
+
+        function trainNetwork() {
+          if (epochs >= 10) return;
+          epochs++;
+          for(let i = 0; i < inputNodesCount; i++){
+            inputValues[i] = parseFloat(document.getElementById(`input-${i}`).value);
+          }
+          for(let i = 0; i < outputNodesCount; i++){
+            targetValues[i] = parseFloat(document.getElementById(`target-${i}`).value);
+          }
+          let hiddenLayerOutput = [];
+          for (let j = 0; j < hiddenNodesCount; j++) {
+              let sum = 0;
+              for (let i = 0; i < inputNodesCount; i++) {
+                  sum += inputValues[i] * weightsInputHidden[i][j];
+              }
+              hiddenLayerOutput[j] = sigmoid(sum);
