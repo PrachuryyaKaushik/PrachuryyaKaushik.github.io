@@ -110,6 +110,8 @@
         let outputNodes = [];
         let edges = [];
         let epochCount = 0;
+        let desiredOutputValues = []; // Store desired output values
+        let currentInputValues = [];
 
         function setupNetwork() {
             epochCount = 0;
@@ -122,6 +124,9 @@
             hiddenNodes = [];
             outputNodes = [];
             edges = [];
+            desiredOutputValues = []; // Clear previous desired outputs
+            currentInputValues = [];     // Clear previous inputs
+
 
             // Generate Input Value Inputs
             inputValuesControls.innerHTML = '<h3>Input Values</h3>';
@@ -186,19 +191,23 @@
         function createEdge(fromNode, toNode) {
             const edge = document.createElement('div');
             edge.classList.add('edge');
-            edge.style.left = `${fromNode.x}px`;
-            edge.style.top = `${Math.min(fromNode.y, toNode.y)}px`;
-            edge.style.width = `${Math.abs(toNode.x - fromNode.x)}px`;
-            edge.style.height = `${Math.abs(toNode.y - fromNode.y)}px`;
+            edge.style.left = `${fromNode.x}px`; // Start at the center of the fromNode
+            edge.style.top = `${fromNode.y}px`;  // Start at the center of the fromNode
+            edge.style.width = `${Math.abs(toNode.x - fromNode.x)}px`; // Width is the horizontal distance
+            edge.style.height = '0px'; // Height is 0, we'll use border for line
+            edge.style.borderBottomWidth = '1px';
+            edge.style.borderBottomStyle = 'dashed';
+            edge.style.borderColor = '#777';
             const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x) * (180 / Math.PI);
-            edge.style.transformOrigin = '0 0';
+            edge.style.transformOrigin = 'top left'; // Rotate from the start point
             edge.style.transform = `rotate(${angle}deg)`;
-            networkCanvas.appendChild(edge);
             return edge;
         }
 
+
         function drawNetwork() {
-            // Ensure edges are drawn behind nodes by re-appending nodes
+            networkCanvas.innerHTML = ''; // Clear canvas to redraw edges properly
+            edges.forEach(edge => networkCanvas.appendChild(edge)); // Draw edges first
             inputNodes.forEach(node => networkCanvas.appendChild(node.element));
             hiddenNodes.forEach(node => networkCanvas.appendChild(node.element));
             outputNodes.forEach(node => networkCanvas.appendChild(node.element));
@@ -208,47 +217,51 @@
             if (inputNodes.length === 0) return; // Network not set up
 
             epochCount++;
-            let currentInputValues = [];
+            currentInputValues = [];
             for (let i = 0; i < inputNodesCount; i++) {
                 currentInputValues.push(parseFloat(document.getElementById(`inputValue${i}`).value));
                 inputNodes[i].value = currentInputValues[i];
                 inputNodes[i].element.textContent = inputNodes[i].value.toFixed(2);
             }
 
-            // Simple Forward Pass Simulation (No actual weights or biases for simplicity in visualization)
+            desiredOutputValues = []; // Update desired output values from input fields in each epoch
+            for (let i = 0; i < outputNodesCount; i++) {
+                desiredOutputValues.push(parseFloat(document.getElementById(`outputValue${i}`).value));
+            }
+
+            // Simple Forward Pass Simulation with more directed value changes
             let hiddenLayerOutputs = [];
             for (let i = 0; i < hiddenNodesCount; i++) {
                 let sum = 0;
                 for (let j = 0; j < inputNodesCount; j++) {
-                    sum += inputNodes[j].value * Math.random(); // Simulate weights
+                    sum += inputNodes[j].value * 0.5; // Simulate weights, keep them constant for visual direction
                 }
-                let hiddenOutput = sigmoid(sum + Math.random()); // Simulate bias and activation
-                hiddenNodes[i].value = hiddenOutput;
+                let hiddenOutput = sigmoid(sum); //  Activation
+                // Make hidden node values move slightly towards an average of inputs (for visualization)
+                hiddenNodes[i].value = hiddenNodes[i].value + (hiddenOutput - hiddenNodes[i].value) * 0.3; // Move 30% towards calculated output
                 hiddenNodes[i].element.textContent = hiddenNodes[i].value.toFixed(2);
-                hiddenLayerOutputs.push(hiddenOutput);
+                hiddenLayerOutputs.push(hiddenNodes[i].value);
             }
 
             let outputLayerOutputs = [];
             for (let i = 0; i < outputNodesCount; i++) {
                 let sum = 0;
                 for (let j = 0; j < hiddenNodesCount; j++) {
-                    sum += hiddenNodes[j].value * Math.random(); // Simulate weights
+                    sum += hiddenNodes[j].value * 0.5; // Simulate weights, constant for visual direction
                 }
-                let outputValue = sigmoid(sum + Math.random()); // Simulate bias and activation
-                outputNodes[i].value = outputValue;
+                let outputValue = sigmoid(sum);
+                 // Make output node values move slightly towards the desired output values
+                outputNodes[i].value = outputNodes[i].value + (desiredOutputValues[i] - outputNodes[i].value) * 0.3; // Move 30% towards desired output
                 outputNodes[i].element.textContent = outputNodes[i].value.toFixed(2);
-                outputLayerOutputs.push(outputValue);
+                outputLayerOutputs.push(outputNodes[i].value);
             }
 
-            // Simulate "learning" by slightly adjusting input/output values for next epoch - very basic for visualization
-            if (epochCount < 10) { // Limit epochs for visualization
-                for (let i = 0; i < inputNodesCount; i++) {
+            // Simulate "learning" by adjusting input/output values less aggressively after a few epochs
+            if (epochCount < 20) { // Increased epoch limit to 20
+                 for (let i = 0; i < inputNodesCount; i++) {
                     let currentValue = parseFloat(document.getElementById(`inputValue${i}`).value);
-                    document.getElementById(`inputValue${i}`).value = (currentValue + (Math.random() * 0.2 - 0.1)).toFixed(2); // Nudge input
-                }
-                 for (let i = 0; i < outputNodesCount; i++) {
-                    let currentValue = parseFloat(document.getElementById(`outputValue${i}`).value);
-                    document.getElementById(`outputValue${i}`).value = (currentValue + (Math.random() * 0.2 - 0.1)).toFixed(2); // Nudge output - desired value
+                    // Nudge input slightly less each epoch to show convergence-like behavior
+                    document.getElementById(`inputValue${i}`).value = (currentValue + (Math.random() * 0.2 - 0.1) * (1 - (epochCount / 20))).toFixed(2);
                 }
             }
         }
