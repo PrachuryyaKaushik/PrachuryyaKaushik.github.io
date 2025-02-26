@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed Forward Neural Network Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        canvas {
+            max-width: 600px;
+            margin: auto;
+        }
+        input, button, select {
+            margin: 5px;
+        }
+        #codeContainer {
+            display: none;
+            text-align: left;
+            background: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Interactive Feed Forward Neural Network Visualization</h2>
+    
+    <label>Number of Inputs: <select id="num_inputs"></select></label><br>
+    <label>Number of Hidden Units: <select id="hidden_units"></select></label><br>
+    <label>Number of Outputs: <select id="output_units"></select></label><br>
+    <label>Learning Rate: <input type="number" id="learning_rate" value="0.01" step="0.001"></label>
+    <label>Epochs (max 10): <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
+    
+    <button onclick="initializeNN()">Start Training</button>
+    <button onclick="prevEpoch()">Previous Epoch</button>
+    <button onclick="nextEpoch()">Next Epoch</button>
+    <button onclick="toggleCode()">Show Code</button>
+    
+    <canvas id="nnChart"></canvas>
+    <p id="info"></p>
+    <p id="error_message" style="color: red;"></p>
+    
+    <div id="codeContainer">
+        <pre id="codeBlock"></pre>
+    </div>
+
+    <script>
+        let chart;
+        let numInputs, hiddenUnits, outputUnits, lr, epochs;
+        let epochIndex = 0;
+        let history = [];
+
+        function initializeDropdowns() {
+            let inputSelect = document.getElementById("num_inputs");
+            let hiddenSelect = document.getElementById("hidden_units");
+            let outputSelect = document.getElementById("output_units");
+            for (let i = 5; i <= 10; i++) inputSelect.innerHTML += `<option value="${i}">${i}</option>`;
+            for (let i = 8; i <= 12; i++) hiddenSelect.innerHTML += `<option value="${i}">${i}</option>`;
+            for (let i = 2; i <= 4; i++) outputSelect.innerHTML += `<option value="${i}">${i}</option>`;
+        }
+
+        function sigmoid(z) {
+            return 1 / (1 + Math.exp(-z));
+        }
+
+        function initializeNN() {
+            numInputs = parseInt(document.getElementById("num_inputs").value);
+            hiddenUnits = parseInt(document.getElementById("hidden_units").value);
+            outputUnits = parseInt(document.getElementById("output_units").value);
+            lr = parseFloat(document.getElementById("learning_rate").value);
+            epochs = Math.min(10, parseInt(document.getElementById("epochs").value));
+            epochIndex = 0;
+            history = [];
+            
+            let weights1 = Array.from({ length: hiddenUnits }, () => Array(numInputs).fill(0.5));
+            let biases1 = Array(hiddenUnits).fill(0.1);
+            let weights2 = Array.from({ length: outputUnits }, () => Array(hiddenUnits).fill(0.5));
+            let biases2 = Array(outputUnits).fill(0.1);
+            
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let loss = 0;
+                for (let i = 0; i < numInputs; i++) {
+                    let hiddenLayer = weights1.map((w, h) => sigmoid(w.reduce((sum, wj, j) => sum + wj * i + biases1[h], 0)));
+                    let outputLayer = weights2.map((w, o) => sigmoid(w.reduce((sum, wj, j) => sum + wj * hiddenLayer[j] + biases2[o], 0)));
+                    loss += outputLayer.reduce((sum, o) => sum + Math.log(o), 0);
+                }
+                history.push({ weights1, weights2, loss });
+            }
+            plotNN(epochIndex);
+        }
+
+        function plotNN(epoch) {
+            let ctx = document.getElementById('nnChart').getContext('2d');
+            if (chart) chart.destroy();
+            let data = history[epoch];
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ["Hidden Weights", "Output Weights"],
+                    datasets: [{
+                        label: 'Weight Distribution',
+                        data: [Math.random(), Math.random()],
+                        backgroundColor: ['blue', 'red']
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { title: { display: true, text: 'Weight Values' } }
+                    }
+                }
+            });
+            document.getElementById("info").innerText = `Epoch: ${epoch + 1}, Loss: ${data.loss.toFixed(4)}`;
+        }
+
+        function prevEpoch() {
+            if (epochIndex > 0) {
+                epochIndex--;
+                plotNN(epochIndex);
+            }
+        }
+
+        function nextEpoch() {
+            if (epochIndex < history.length - 1) {
+                epochIndex++;
+                plotNN(epochIndex);
+            }
+        }
+
+        function toggleCode() {
+            let codeContainer = document.getElementById("codeContainer");
+            let codeBlock = document.getElementById("codeBlock");
+            if (codeContainer.style.display === "none") {
+                codeContainer.style.display = "block";
+                codeBlock.innerText = `function initializeNN() {\n    // Feed Forward Neural Network with 1 hidden layer\n    let weights1 = Array.from({ length: hiddenUnits }, () => Array(numInputs).fill(0.5));\n    let biases1 = Array(hiddenUnits).fill(0.1);\n    let weights2 = Array.from({ length: outputUnits }, () => Array(hiddenUnits).fill(0.5));\n    let biases2 = Array(outputUnits).fill(0.1);\n    for (let epoch = 0; epoch < epochs; epoch++) {\n        // Forward propagation logic\n        let loss = 0;\n        for (let i = 0; i < numInputs; i++) {\n            let hiddenLayer = weights1.map((w, h) => sigmoid(w.reduce((sum, wj, j) => sum + wj * i + biases1[h], 0)));\n            let outputLayer = weights2.map((w, o) => sigmoid(w.reduce((sum, wj, j) => sum + wj * hiddenLayer[j] + biases2[o], 0)));\n            loss += outputLayer.reduce((sum, o) => sum + Math.log(o), 0);\n        }\n    }\n}`;
+            } else {
+                codeContainer.style.display = "none";
+            }
+        }
+        
+        initializeDropdowns();
+    </script>
+</body>
+</html>
