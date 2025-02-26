@@ -57,7 +57,6 @@
 
     <script>
         let chart, history = [], epochIndex = 0;
-        const MAX_INPUTS = 10;
 
         // Handle showing/hiding batch size and shuffle options based on SGD type
         document.getElementById('sgd_type').addEventListener('change', function() {
@@ -131,7 +130,44 @@
 
         function prevEpoch() { if (epochIndex > 0) epochIndex--, plotData(); }
         function nextEpoch() { if (epochIndex < history.length - 1) epochIndex++, plotData(); }
-        function toggleCode() { document.getElementById('code_section').classList.toggle('hidden'); document.getElementById('code_section').innerText = document.documentElement.outerHTML; }
+
+        function toggleCode() {
+            const codeSection = document.getElementById('code_section');
+            codeSection.classList.toggle('hidden');
+
+            const sgdCode = `
+function initializeRegression() {
+    let x = document.getElementById("x_values").value.split(",").map(Number);
+    let y = document.getElementById("y_values").value.split(",").map(Number);
+    let a = parseFloat(document.getElementById("a").value);
+    let b = parseFloat(document.getElementById("b").value);
+    let lr = parseFloat(document.getElementById("learning_rate").value);
+    let epochs = parseInt(document.getElementById("epochs").value);
+    let sgdType = document.getElementById("sgd_type").value;
+    let batchSize = parseInt(document.getElementById("batch_size").value);
+    let shuffle = document.getElementById("shuffle_data").checked;
+    history = [];
+
+    for (let epoch = 0; epoch < epochs; epoch++) {
+        let indices = [...Array(x.length).keys()];
+        if (shuffle && sgdType === "mini-batch") indices.sort(() => Math.random() - 0.5);
+
+        for (let i = 0; i < x.length; i += (sgdType === "batch" ? x.length : batchSize)) {
+            let batch = indices.slice(i, i + (sgdType === "batch" ? x.length : batchSize));
+            let da = 0, db = 0;
+            batch.forEach(idx => {
+                let error = (a * x[idx] + b) - y[idx];
+                da += (2 / batch.length) * error * x[idx];
+                db += (2 / batch.length) * error;
+            });
+            a -= lr * da;
+            b -= lr * db;
+        }
+    }
+}`;
+
+            codeSection.innerText = sgdCode;
+        }
     </script>
 </body>
 </html>
