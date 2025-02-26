@@ -116,6 +116,22 @@
             hiddenNodesCount = parseInt(hiddenNodesInput.value);
             outputNodesCount = parseInt(outputNodesInput.value);
 
+            // **Input Validation START**
+            if (inputNodesCount < 2 || inputNodesCount > 8) {
+                alert("Number of input nodes must be between 2 and 8.");
+                return; // Stop network setup
+            }
+            if (hiddenNodesCount < 2 || hiddenNodesCount > 10) {
+                alert("Number of hidden nodes must be between 2 and 10.");
+                return; // Stop network setup
+            }
+            if (outputNodesCount < 2 || outputNodesCount > 4) {
+                alert("Number of output nodes must be between 2 and 4.");
+                return; // Stop network setup
+            }
+            // **Input Validation END**
+
+
             networkCanvas.innerHTML = ''; // Clear previous network
             inputNodes = [];
             hiddenNodes = [];
@@ -224,7 +240,7 @@
                  // Update output node values, move towards desired output values
                 outputNodes[i].value = outputNodes[i].value + (desiredOutputValues[i] - outputNodes[i].value) * 0.3; // Move 30% towards desired output
                 outputNodes[i].element.textContent = outputNodes[i].value.toFixed(2);
-                outputLayerOutputs.push(outputNodes[i].value);
+                outputLayerOutputs.push(outputValue);
             }
         }
 
