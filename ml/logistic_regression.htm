@@ -30,54 +30,56 @@
 </head>
 <body>
     <h2>Interactive Logistic Regression Visualization</h2>
-    
+
     <label>X values (comma separated): <input type="text" id="x_values" value="1,2,3,4,5"></label><br>
     <label>Y values (binary, comma separated): <input type="text" id="y_values" value="0,0,1,1,1"></label><br>
     <label>Initial a: <input type="number" id="a" value="0"></label>
     <label>Initial b: <input type="number" id="b" value="0"></label><br>
     <label>Learning Rate: <input type="number" id="learning_rate" value="0.01" step="0.001"></label>
     <label>Epochs (max 10): <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
-    
+
     <button onclick="initializeRegression()">Start Regression</button>
     <button onclick="prevEpoch()">Previous Epoch</button>
     <button onclick="nextEpoch()">Next Epoch</button>
     <button onclick="toggleCode()">Show Code</button>
-    
+
     <canvas id="regressionChart"></canvas>
     <p id="info"></p>
     <p id="error_message" style="color: red;"></p>
-    
+
     <div id="codeContainer">
         <pre id="codeBlock"></pre>
     </div>
 
     <script>
-        let chart;
-        let x, y, a, b, lr, epochs;
-        let epochIndex = 0;
-        let history = [];
+        let chart; // Chart.js chart instance
+        let x, y, a, b, lr, epochs; // Regression parameters and data
+        let epochIndex = 0; // Current epoch index
+        let history = []; // Store history of a, b, loss and line data for each epoch
 
+        // Sigmoid function: Maps any real value to a value between 0 and 1
         function sigmoid(z) {
             return 1 / (1 + Math.exp(-z));
         }
 
+        // Plot data for a given epoch on the chart
         function plotData(epoch) {
             let ctx = document.getElementById('regressionChart').getContext('2d');
-            if (chart) chart.destroy();
-            let data = history[epoch];
+            if (chart) chart.destroy(); // Destroy the previous chart instance if it exists
+            let data = history[epoch]; // Retrieve the regression data for the specified epoch from history
             chart = new Chart(ctx, {
-                type: 'scatter',
+                type: 'scatter', // Use a scatter chart to display data points and a line for the logistic curve
                 data: {
                     datasets: [
                         {
-                            label: 'Data Points',
-                            data: x.map((xi, i) => ({ x: xi, y: y[i] })),
+                            label: 'Data Points', // Dataset for the actual data points
+                            data: x.map((xi, i) => ({ x: xi, y: y[i] })), // Map x and y values to chart data format
                             backgroundColor: 'blue'
                         },
                         {
-                            label: 'Logistic Curve',
-                            data: data.line,
-                            type: 'line',
+                            label: 'Logistic Curve', // Dataset for the logistic regression curve
+                            data: data.line, // Use the calculated line data from the history
+                            type: 'line', // Specify this dataset as a line chart
                             borderColor: 'red',
                             borderWidth: 2,
                             fill: false
@@ -86,76 +88,123 @@
                 },
                 options: {
                     scales: {
-                        x: { title: { display: true, text: 'X' } },
-                        y: { title: { display: true, text: 'Probability' }, min: 0, max: 1 }
+                        x: { title: { display: true, text: 'X' } }, // X-axis label
+                        y: { title: { display: true, text: 'Probability' }, min: 0, max: 1 } // Y-axis label and range (0 to 1 for probability)
                     }
                 }
             });
-            document.getElementById("info").innerText = `Epoch: ${epoch + 1}, a: ${data.a.toFixed(4)}, b: ${data.b.toFixed(4)}, Loss: ${data.loss.toFixed(4)}`;
+            document.getElementById("info").innerText = `Epoch: ${epoch + 1}, a: ${data.a.toFixed(4)}, b: ${data.b.toFixed(4)}, Loss: ${data.loss.toFixed(4)}`; // Update info text with current epoch details
         }
 
+        // Initialize and perform logistic regression using gradient descent
         function initializeRegression() {
-            let errorMessage = document.getElementById("error_message");
-            errorMessage.innerText = "";
-            
-            x = document.getElementById("x_values").value.split(",").map(Number);
-            y = document.getElementById("y_values").value.split(",").map(Number);
-            
-            if (x.length !== y.length) {
-                errorMessage.innerText = "Error: Number of X and Y values must be equal.";
-                return;
+            let errorMessage = document.getElementById("error_message"); // Get the error message display element
+            errorMessage.innerText = ""; // Clear any previous error messages
+
+            // 1. Data Preparation:
+            x = document.getElementById("x_values").value.split(",").map(Number); // Get X values from input, split by comma, and convert to numbers
+            y = document.getElementById("y_values").value.split(",").map(Number); // Get Y values from input, split by comma, and convert to numbers
+
+            // 2. Input Validation:
+            if (x.length !== y.length) { // Check if the number of X and Y values are the same
+                errorMessage.innerText = "Error: Number of X and Y values must be equal."; // Display error message if counts are different
+                return; // Exit the function if there's an error
             }
-            
-            a = parseFloat(document.getElementById("a").value);
-            b = parseFloat(document.getElementById("b").value);
-            lr = parseFloat(document.getElementById("learning_rate").value);
-            epochs = Math.min(10, parseInt(document.getElementById("epochs").value));
-            epochIndex = 0;
-            history = [];
-            
-            for (let epoch = 0; epoch < epochs; epoch++) {
-                let da = 0, db = 0, loss = 0;
-                let n = x.length;
-                for (let i = 0; i < n; i++) {
-                    let z = a * x[i] + b;
-                    let y_pred = sigmoid(z);
-                    let error = y_pred - y[i];
-                    da += (1 / n) * error * x[i];
-                    db += (1 / n) * error;
-                    loss += -(y[i] * Math.log(y_pred) + (1 - y[i]) * Math.log(1 - y_pred));
+
+            // 3. Parameter Initialization:
+            a = parseFloat(document.getElementById("a").value); // Initialize 'a' (slope) from input
+            b = parseFloat(document.getElementById("b").value); // Initialize 'b' (intercept) from input
+            lr = parseFloat(document.getElementById("learning_rate").value); // Get learning rate from input
+            epochs = Math.min(10, parseInt(document.getElementById("epochs").value)); // Get number of epochs from input, limit to max 10
+            epochIndex = 0; // Reset epoch index to 0
+            history = []; // Clear history array to store new regression data
+
+            // 4. Gradient Descent Loop:
+            for (let epoch = 0; epoch < epochs; epoch++) { // Loop through the specified number of epochs
+                let da = 0, db = 0, loss = 0; // Initialize gradients for 'a' and 'b', and loss for the current epoch
+                let n = x.length; // Number of data points
+
+                // 5. Calculate Gradients and Loss for each Data Point:
+                for (let i = 0; i < n; i++) { // Iterate over each data point
+                    let z = a * x[i] + b; // Calculate the linear combination: z = ax + b
+                    let y_pred = sigmoid(z); // Calculate the predicted probability using the sigmoid function
+                    let error = y_pred - y[i]; // Calculate the error between the prediction and the actual value
+
+                    da += (1 / n) * error * x[i]; // Accumulate gradient for 'a': Average error times x[i]
+                    db += (1 / n) * error; // Accumulate gradient for 'b': Average error
+
+                    // 6. Binary Cross-Entropy Loss Calculation:
+                    // Calculate the loss using binary cross-entropy, adding a small epsilon (1e-9) to prevent log(0)
+                    loss += -(y[i] * Math.log(y_pred + 1e-9) + (1 - y[i]) * Math.log(1 - y_pred + 1e-9));
                 }
-                a -= lr * da;
-                b -= lr * db;
-                loss /= n;
-                
-                let line = x.map(xi => ({ x: xi, y: sigmoid(a * xi + b) }));
-                history.push({ a, b, loss, line });
+
+                // 7. Update Parameters (Gradient Descent):
+                a -= lr * da; // Update 'a' by subtracting the learning rate times its gradient
+                b -= lr * db; // Update 'b' by subtracting the learning rate times its gradient
+                loss /= n; // Average the loss over all data points for this epoch
+
+                // 8. Store History for Visualization:
+                let line = x.map(xi => ({ x: xi, y: sigmoid(a * xi + b) })); // Generate line data for the logistic curve using updated 'a' and 'b'
+                history.push({ a, b, loss, line }); // Store 'a', 'b', loss, and line data for this epoch in history
             }
-            plotData(epochIndex);
+
+            plotData(epochIndex); // Plot the chart for the initial epoch (epoch 0) after regression is initialized
         }
 
+        // Display the previous epoch on the chart
         function prevEpoch() {
-            if (epochIndex > 0) {
-                epochIndex--;
-                plotData(epochIndex);
+            if (epochIndex > 0) { // Check if there is a previous epoch to display
+                epochIndex--; // Decrement epoch index to move to the previous epoch
+                plotData(epochIndex); // Plot the data for the previous epoch
             }
         }
 
+        // Display the next epoch on the chart
         function nextEpoch() {
-            if (epochIndex < history.length - 1) {
-                epochIndex++;
-                plotData(epochIndex);
+            if (epochIndex < history.length - 1) { // Check if there is a next epoch to display
+                epochIndex++; // Increment epoch index to move to the next epoch
+                plotData(epochIndex); // Plot the data for the next epoch
             }
         }
 
+        // Toggle the visibility of the code container and display the logistic regression code
         function toggleCode() {
-            let codeContainer = document.getElementById("codeContainer");
-            let codeBlock = document.getElementById("codeBlock");
-            if (codeContainer.style.display === "none") {
-                codeContainer.style.display = "block";
-                codeBlock.innerText = `function sigmoid(z) {\n    return 1 / (1 + Math.exp(-z));\n}\n\nfunction initializeRegression() {\n    // Logistic Regression Gradient Descent\n    for (let epoch = 0; epoch < epochs; epoch++) {\n        let da = 0, db = 0, loss = 0;\n        for (let i = 0; i < x.length; i++) {\n            let y_pred = sigmoid(a * x[i] + b);\n            let error = y_pred - y[i];\n            da += error * x[i];\n            db += error;\n            loss += -(y[i] * Math.log(y_pred) + (1 - y[i]) * Math.log(1 - y_pred));\n        }\n        a -= lr * da;\n        b -= lr * db;\n    }\n}`;
+            let codeContainer = document.getElementById("codeContainer"); // Get the code container element
+            let codeBlock = document.getElementById("codeBlock"); // Get the code block element
+            if (codeContainer.style.display === "none") { // If code container is not visible
+                codeContainer.style.display = "block"; // Make the code container visible
+                // Set the innerText of the codeBlock to display the javascript code for logistic regression
+                codeBlock.innerText = `function sigmoid(z) { // Sigmoid function
+    return 1 / (1 + Math.exp(-z));
+}
+
+function initializeRegression() { // Logistic Regression using Gradient Descent
+    // 1. Data Preparation (Input from HTML)
+    // 2. Input Validation (X and Y length check)
+    // 3. Parameter Initialization (a, b, lr, epochs from HTML)
+    // 4. Gradient Descent Loop (for each epoch):
+    for (let epoch = 0; epoch < epochs; epoch++) {
+        let da = 0, db = 0, loss = 0; // Initialize gradients and loss
+        let n = x.length;
+            // 5. Calculate Gradients and Loss for each Data Point:
+            for (let i = 0; i < n; i++) {
+                let z = a * x[i] + b; // Linear combination
+                let y_pred = sigmoid(z); // Prediction using sigmoid
+                let error = y_pred - y[i]; // Error calculation
+                da += (1 / n) * error * x[i]; // Gradient for 'a' accumulation
+                db += (1 / n) * error; // Gradient for 'b' accumulation
+                // 6. Binary Cross-Entropy Loss:
+                loss += -(y[i] * Math.log(y_pred + 1e-9) + (1 - y[i]) * Math.log(1 - y_pred + 1e-9)); // Loss accumulation
+            }
+            // 7. Update Parameters:
+            a -= lr * da; // Update 'a' using gradient descent
+            b -= lr * db; // Update 'b' using gradient descent
+            loss /= n; // Average loss
+        }
+        // 8. Store History for Visualization (a, b, loss, line data)
+}`;
             } else {
-                codeContainer.style.display = "none";
+                codeContainer.style.display = "none"; // Hide the code container if it's visible
             }
         }
     </script>
