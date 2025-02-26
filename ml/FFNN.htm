@@ -1,127 +1,94 @@
-import React, { useState, useEffect } from "react";
-import { Button, Input, Select, Card } from "@/components/ui";
-import { motion } from "framer-motion";
-
-const NeuralNetworkVisualizer = () => {
-  const [numInputs, setNumInputs] = useState(5);
-  const [numHidden, setNumHidden] = useState(8);
-  const [numOutputs, setNumOutputs] = useState(2);
-  const [inputValues, setInputValues] = useState(Array(5).fill(0.5));
-  const [outputValues, setOutputValues] = useState(Array(2).fill(0.5));
-  const [weights, setWeights] = useState([]);
-  const [epoch, setEpoch] = useState(0);
-  
-  useEffect(() => {
-    initializeWeights();
-  }, [numInputs, numHidden, numOutputs]);
-
-  const initializeWeights = () => {
-    const newWeights = {
-      inputToHidden: Array(numInputs)
-        .fill(null)
-        .map(() => Array(numHidden).fill(0).map(() => Math.random() * 2 - 1)),
-      hiddenToOutput: Array(numHidden)
-        .fill(null)
-        .map(() => Array(numOutputs).fill(0).map(() => Math.random() * 2 - 1)),
-    };
-    setWeights(newWeights);
-  };
-
-  const updateEpoch = () => {
-    setEpoch(epoch + 1);
-    setWeights((prevWeights) => ({
-      inputToHidden: prevWeights.inputToHidden.map((row) =>
-        row.map((w) => w + (Math.random() - 0.5) * 0.1)
-      ),
-      hiddenToOutput: prevWeights.hiddenToOutput.map((row) =>
-        row.map((w) => w + (Math.random() - 0.5) * 0.1)
-      ),
-    }));
-  };
-
-  return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-center">Neural Network Visualizer</h1>
-      <div className="flex space-x-4">
-        <Select value={numInputs} onChange={(e) => setNumInputs(Number(e))}>
-          {[...Array(6).keys()].map((i) => (
-            <option key={i} value={i + 5}>{i + 5} Inputs</option>
-          ))}
-        </Select>
-        <Select value={numHidden} onChange={(e) => setNumHidden(Number(e))}>
-          {[...Array(5).keys()].map((i) => (
-            <option key={i} value={i + 8}>{i + 8} Hidden</option>
-          ))}
-        </Select>
-        <Select value={numOutputs} onChange={(e) => setNumOutputs(Number(e))}>
-          {[...Array(3).keys()].map((i) => (
-            <option key={i} value={i + 2}>{i + 2} Outputs</option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-3 gap-8 justify-center items-center">
-        <div>
-          <h2 className="text-lg font-semibold">Inputs</h2>
-          {inputValues.map((val, i) => (
-            <Input
-              key={i}
-              type="number"
-              value={val}
-              onChange={(e) => {
-                const newValues = [...inputValues];
-                newValues[i] = parseFloat(e.target.value) || 0;
-                setInputValues(newValues);
-              }}
-              className="my-1"
-            />
-          ))}
-        </div>
-
-        <div className="flex flex-col items-center">
-          <h2 className="text-lg font-semibold">Hidden Layer</h2>
-          {weights.inputToHidden && (
-            <div className="grid gap-3">
-              {weights.inputToHidden.map((row, i) => (
-                <div key={i} className="flex gap-2">
-                  {row.map((w, j) => (
-                    <motion.div
-                      key={j}
-                      className={`p-2 rounded-full text-center text-white ${w > 0 ? "bg-green-500" : "bg-red-500"}`}
-                    >
-                      {w.toFixed(2)}
-                    </motion.div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <h2 className="text-lg font-semibold">Outputs</h2>
-          {outputValues.map((val, i) => (
-            <Input
-              key={i}
-              type="number"
-              value={val}
-              onChange={(e) => {
-                const newValues = [...outputValues];
-                newValues[i] = parseFloat(e.target.value) || 0;
-                setOutputValues(newValues);
-              }}
-              className="my-1"
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex justify-center space-x-4">
-        <Button onClick={updateEpoch}>Next Epoch</Button>
-        <span className="text-lg">Epoch: {epoch}</span>
-      </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Visualizer</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .container { display: flex; justify-content: center; margin-top: 20px; }
+        .column { margin: 10px; }
+        .node { width: 50px; height: 50px; line-height: 50px; text-align: center; border-radius: 50%; display: inline-block; margin: 5px; }
+        .red { background-color: red; color: white; }
+        .green { background-color: green; color: white; }
+        .input, .output { width: 60px; margin: 5px; }
+        .weights { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Neural Network Visualizer</h1>
+    <label>Inputs:</label>
+    <input type="number" id="numInputs" min="5" max="10" value="5">
+    <label>Hidden Units:</label>
+    <input type="number" id="numHidden" min="8" max="12" value="8">
+    <label>Outputs:</label>
+    <input type="number" id="numOutputs" min="2" max="4" value="2">
+    <button onclick="initializeNetwork()">Set Network</button>
+    
+    <div class="container">
+        <div id="inputLayer" class="column"></div>
+        <div id="hiddenLayer" class="column"></div>
+        <div id="outputLayer" class="column"></div>
     </div>
-  );
-};
+    <button onclick="nextEpoch()">Next Epoch</button>
+    <p>Epoch: <span id="epoch">0</span></p>
+    
+    <script>
+        let weights = { inputToHidden: [], hiddenToOutput: [] };
+        let epoch = 0;
 
-export default NeuralNetworkVisualizer;
+        function initializeNetwork() {
+            let numInputs = parseInt(document.getElementById("numInputs").value);
+            let numHidden = parseInt(document.getElementById("numHidden").value);
+            let numOutputs = parseInt(document.getElementById("numOutputs").value);
+            epoch = 0;
+            document.getElementById("epoch").innerText = epoch;
+            
+            weights.inputToHidden = Array.from({ length: numInputs }, () => Array(numHidden).fill(0).map(() => Math.random() * 2 - 1));
+            weights.hiddenToOutput = Array.from({ length: numHidden }, () => Array(numOutputs).fill(0).map(() => Math.random() * 2 - 1));
+            renderNetwork(numInputs, numHidden, numOutputs);
+        }
+
+        function renderNetwork(numInputs, numHidden, numOutputs) {
+            let inputLayer = document.getElementById("inputLayer");
+            let hiddenLayer = document.getElementById("hiddenLayer");
+            let outputLayer = document.getElementById("outputLayer");
+            
+            inputLayer.innerHTML = '<h3>Inputs</h3>' + generateNodes(numInputs, "input");
+            hiddenLayer.innerHTML = '<h3>Hidden</h3>' + generateWeights(weights.inputToHidden, "hidden");
+            outputLayer.innerHTML = '<h3>Outputs</h3>' + generateWeights(weights.hiddenToOutput, "output");
+        }
+
+        function generateNodes(count, type) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `<input class="${type}" type="number" value="0.5">`;
+            }
+            return html;
+        }
+
+        function generateWeights(weightMatrix, type) {
+            let html = '<div class="weights">';
+            for (let i = 0; i < weightMatrix.length; i++) {
+                for (let j = 0; j < weightMatrix[i].length; j++) {
+                    let color = weightMatrix[i][j] > 0 ? 'green' : 'red';
+                    html += `<div class="node ${color}">${weightMatrix[i][j].toFixed(2)}</div>`;
+                }
+                html += '<br>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function nextEpoch() {
+            epoch++;
+            document.getElementById("epoch").innerText = epoch;
+            
+            weights.inputToHidden = weights.inputToHidden.map(row => row.map(w => w + (Math.random() - 0.5) * 0.1));
+            weights.hiddenToOutput = weights.hiddenToOutput.map(row => row.map(w => w + (Math.random() - 0.5) * 0.1));
+            
+            renderNetwork(weights.inputToHidden.length, weights.inputToHidden[0].length, weights.hiddenToOutput[0].length);
+        }
+    </script>
+</body>
+</html>
