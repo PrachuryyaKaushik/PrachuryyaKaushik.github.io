@@ -8,10 +8,10 @@
         body { font-family: Arial, sans-serif; text-align: center; }
         .container { display: flex; justify-content: center; align-items: center; margin-top: 20px; }
         .column { margin: 20px; position: relative; }
-        .node { width: 50px; height: 50px; line-height: 50px; text-align: center; border-radius: 50%; display: block; margin: 15px auto; }
+        .node { width: 60px; height: 60px; line-height: 60px; text-align: center; border-radius: 50%; display: block; margin: 20px auto; font-size: 14px; }
         .red { background-color: red; color: white; }
         .green { background-color: green; color: white; }
-        .input, .output { width: 60px; margin: 5px; }
+        .input, .output { width: 80px; margin: 5px; }
         .canvas-container { position: absolute; top: 0; left: 0; z-index: -1; }
     </style>
 </head>
@@ -36,6 +36,7 @@
     
     <script>
         let weights = { inputToHidden: [], hiddenToOutput: [] };
+        let values = { input: [], hidden: [], output: [] };
         let epoch = 0;
         let canvas, ctx;
 
@@ -49,6 +50,10 @@
             weights.inputToHidden = Array.from({ length: numInputs }, () => Array(numHidden).fill(0).map(() => Math.random() * 2 - 1));
             weights.hiddenToOutput = Array.from({ length: numHidden }, () => Array(numOutputs).fill(0).map(() => Math.random() * 2 - 1));
             
+            values.input = Array(numInputs).fill(1);
+            values.hidden = Array(numHidden).fill(0);
+            values.output = Array(numOutputs).fill(0);
+            
             renderNetwork(numInputs, numHidden, numOutputs);
         }
 
@@ -57,17 +62,17 @@
             let hiddenLayer = document.getElementById("hiddenLayer");
             let outputLayer = document.getElementById("outputLayer");
             
-            inputLayer.innerHTML = '<h3>Inputs</h3>' + generateNodes(numInputs, "input");
-            hiddenLayer.innerHTML = '<h3>Hidden</h3>' + generateNodes(numHidden, "hidden");
-            outputLayer.innerHTML = '<h3>Outputs</h3>' + generateNodes(numOutputs, "output");
+            inputLayer.innerHTML = '<h3>Inputs</h3>' + generateNodes(numInputs, "input", values.input);
+            hiddenLayer.innerHTML = '<h3>Hidden</h3>' + generateNodes(numHidden, "hidden", values.hidden);
+            outputLayer.innerHTML = '<h3>Outputs</h3>' + generateNodes(numOutputs, "output", values.output);
             
             drawConnections(numInputs, numHidden, numOutputs);
         }
 
-        function generateNodes(count, type) {
+        function generateNodes(count, type, vals) {
             let html = '';
             for (let i = 0; i < count; i++) {
-                html += `<div class="node ${type}">${type === 'input' ? 'I' + (i + 1) : (type === 'hidden' ? 'H' + (i + 1) : 'O' + (i + 1))}</div>`;
+                html += `<div class="node ${type}" style="background-color: ${vals[i] >= 0 ? 'green' : 'red'}">${vals[i].toFixed(2)}</div>`;
             }
             return html;
         }
@@ -83,20 +88,21 @@
             let hiddenNodes = document.querySelectorAll(".hidden");
             let outputNodes = document.querySelectorAll(".output");
             
-            connectLayers(inputNodes, hiddenNodes);
-            connectLayers(hiddenNodes, outputNodes);
+            connectLayers(inputNodes, hiddenNodes, weights.inputToHidden);
+            connectLayers(hiddenNodes, outputNodes, weights.hiddenToOutput);
         }
 
-        function connectLayers(fromNodes, toNodes) {
-            fromNodes.forEach(from => {
+        function connectLayers(fromNodes, toNodes, weightMatrix) {
+            fromNodes.forEach((from, i) => {
                 let fromRect = from.getBoundingClientRect();
-                toNodes.forEach(to => {
+                toNodes.forEach((to, j) => {
                     let toRect = to.getBoundingClientRect();
+                    let weight = weightMatrix[i][j];
                     ctx.beginPath();
                     ctx.moveTo(fromRect.left + fromRect.width / 2, fromRect.top + fromRect.height / 2);
                     ctx.lineTo(toRect.left + toRect.width / 2, toRect.top + toRect.height / 2);
-                    ctx.strokeStyle = "black";
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = weight >= 0 ? "green" : "red";
+                    ctx.lineWidth = Math.abs(weight * 2);
                     ctx.stroke();
                 });
             });
@@ -105,6 +111,9 @@
         function nextEpoch() {
             epoch++;
             document.getElementById("epoch").innerText = epoch;
+            
+            values.hidden = values.hidden.map(() => Math.random() * 2 - 1);
+            values.output = values.output.map(() => Math.random() * 2 - 1);
             
             weights.inputToHidden = weights.inputToHidden.map(row => row.map(w => w + (Math.random() - 0.5) * 0.1));
             weights.hiddenToOutput = weights.hiddenToOutput.map(row => row.map(w => w + (Math.random() - 0.5) * 0.1));
