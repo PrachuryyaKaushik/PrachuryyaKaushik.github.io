@@ -108,8 +108,7 @@
         let hiddenNodes = [];
         let outputNodes = [];
         let epochCount = 0;
-        let desiredOutputValues = []; // Store desired output values
-        let currentInputValues = []; // Store initial input values
+
 
         function setupNetwork() {
             epochCount = 0;
@@ -122,23 +121,20 @@
             hiddenNodes = [];
             outputNodes = [];
             edges = []; // edges is not used anymore but kept for legacy if needed
-            desiredOutputValues = [];
-            currentInputValues = [];
 
-            // Generate Input Value Inputs and store initial values
+
+            // Generate Input Value Inputs - now editable always
             inputValuesControls.innerHTML = '<h3>Input Values</h3>';
             for (let i = 0; i < inputNodesCount; i++) {
                 inputValuesControls.innerHTML += `<label for="inputValue${i}">Input ${i + 1}:</label>
-                                                 <input type="number" id="inputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}" readonly><br>`; // Readonly input
-                currentInputValues.push(parseFloat(document.getElementById(`inputValue${i}`).value)); // Store initial input values
+                                                 <input type="number" id="inputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}"><br>`; // Input is editable
             }
 
-            // Generate Output Value Inputs and store desired values
+            // Generate Output Value Inputs - now editable always
             outputValuesControls.innerHTML = '<h3>Output Values (Desired)</h3>';
             for (let i = 0; i < outputNodesCount; i++) {
                 outputValuesControls.innerHTML += `<label for="outputValue${i}">Output ${i + 1}:</label>
-                                                  <input type="number" id="outputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}" ><br>`; // User can set desired output
-                desiredOutputValues.push(parseFloat(document.getElementById(`outputValue${i}`).value)); // Store desired output values
+                                                  <input type="number" id="outputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}" ><br>`; // Output is editable
             }
 
 
@@ -152,7 +148,7 @@
 
             for (let i = 0; i < inputNodesCount; i++) {
                 inputNodes.push(createNode('input', i, nodeSpacingX * 0.5, inputNodeSpacingY * (i + 1)));
-                inputNodes[i].value = currentInputValues[i]; // Set initial value
+                inputNodes[i].value = parseFloat(document.getElementById(`inputValue${i}`).value); // Set initial value from input field
                 inputNodes[i].element.textContent = inputNodes[i].value.toFixed(2); // Display initial value
             }
             for (let i = 0; i < hiddenNodesCount; i++) {
@@ -191,16 +187,25 @@
 
             epochCount++;
 
-            // No need to read input values here, using stored initial values 'currentInputValues'
+            let currentInputValues = [];
+            for (let i = 0; i < inputNodesCount; i++) {
+                currentInputValues.push(parseFloat(document.getElementById(`inputValue${i}`).value)); // Read current input values from fields in each epoch
+                inputNodes[i].value = currentInputValues[i]; // Update input node value - for display if needed, though input node values themselves are now intended to be constant in visualization.
+                inputNodes[i].element.textContent = inputNodes[i].value.toFixed(2); //Update display for input node - also constant in visualization
+            }
 
-            // Desired output values are read in setup and remain constant 'desiredOutputValues'
+            let desiredOutputValues = [];
+            for (let i = 0; i < outputNodesCount; i++) {
+                desiredOutputValues.push(parseFloat(document.getElementById(`outputValue${i}`).value)); // Read current desired output values from fields in each epoch
+            }
+
 
             // Simple Forward Pass Simulation with more directed value changes
             let hiddenLayerOutputs = [];
             for (let i = 0; i < hiddenNodesCount; i++) {
                 let sum = 0;
                 for (let j = 0; j < inputNodesCount; j++) {
-                    sum += currentInputValues[j] * 0.5; // Use stored input values
+                    sum += currentInputValues[j] * 0.5; // Use current input field values
                 }
                 let hiddenOutput = sigmoid(sum); //  Activation
                 // Update hidden node values
