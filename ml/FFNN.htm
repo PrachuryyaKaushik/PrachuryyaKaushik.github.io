@@ -10,7 +10,6 @@
         .input-node { background-color: #cce5ff; }
         .hidden-node { background-color: #ffe0b2; }
         .output-node { background-color: #ccffcc; }
-        .edge { position: absolute; border-bottom: 1px dashed #777; }
         .value-input { width: 50px; margin: 5px; }
         #algorithm-code { white-space: pre-line; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9; display: none; }
         .button-container button { margin: 5px; padding: 8px 15px; border: none; border-radius: 5px; background-color: #007bff; color: white; cursor: pointer; }
@@ -108,10 +107,9 @@
         let inputNodes = [];
         let hiddenNodes = [];
         let outputNodes = [];
-        let edges = [];
         let epochCount = 0;
         let desiredOutputValues = []; // Store desired output values
-        let currentInputValues = [];
+        let currentInputValues = []; // Store initial input values
 
         function setupNetwork() {
             epochCount = 0;
@@ -123,23 +121,25 @@
             inputNodes = [];
             hiddenNodes = [];
             outputNodes = [];
-            edges = [];
-            desiredOutputValues = []; // Clear previous desired outputs
-            currentInputValues = [];     // Clear previous inputs
+            edges = []; // edges is not used anymore but kept for legacy if needed
+            desiredOutputValues = [];
+            currentInputValues = [];
 
-
-            // Generate Input Value Inputs
+            // Generate Input Value Inputs and store initial values
             inputValuesControls.innerHTML = '<h3>Input Values</h3>';
             for (let i = 0; i < inputNodesCount; i++) {
                 inputValuesControls.innerHTML += `<label for="inputValue${i}">Input ${i + 1}:</label>
-                                                 <input type="number" id="inputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}"><br>`;
+                                                 <input type="number" id="inputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}" readonly><br>`; // Readonly input
+                currentInputValues.push(parseFloat(document.getElementById(`inputValue${i}`).value)); // Store initial input values
             }
-             // Generate Output Value Inputs
-             outputValuesControls.innerHTML = '<h3>Output Values (Desired)</h3>';
-             for (let i = 0; i < outputNodesCount; i++) {
-                 outputValuesControls.innerHTML += `<label for="outputValue${i}">Output ${i + 1}:</label>
-                                                  <input type="number" id="outputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}"><br>`;
-             }
+
+            // Generate Output Value Inputs and store desired values
+            outputValuesControls.innerHTML = '<h3>Output Values (Desired)</h3>';
+            for (let i = 0; i < outputNodesCount; i++) {
+                outputValuesControls.innerHTML += `<label for="outputValue${i}">Output ${i + 1}:</label>
+                                                  <input type="number" id="outputValue${i}" class="value-input" value="${(Math.random() * 2 - 1).toFixed(2)}" ><br>`; // User can set desired output
+                desiredOutputValues.push(parseFloat(document.getElementById(`outputValue${i}`).value)); // Store desired output values
+            }
 
 
             // Create Nodes
@@ -152,6 +152,8 @@
 
             for (let i = 0; i < inputNodesCount; i++) {
                 inputNodes.push(createNode('input', i, nodeSpacingX * 0.5, inputNodeSpacingY * (i + 1)));
+                inputNodes[i].value = currentInputValues[i]; // Set initial value
+                inputNodes[i].element.textContent = inputNodes[i].value.toFixed(2); // Display initial value
             }
             for (let i = 0; i < hiddenNodesCount; i++) {
                 hiddenNodes.push(createNode('hidden', i, nodeSpacingX * 1.5, hiddenNodeSpacingY * (i + 1)));
@@ -160,19 +162,7 @@
                 outputNodes.push(createNode('output', i, nodeSpacingX * 2.5, outputNodeSpacingY * (i + 1)));
             }
 
-            // Create Edges
-            for (let inputNode of inputNodes) {
-                for (let hiddenNode of hiddenNodes) {
-                    edges.push(createEdge(inputNode, hiddenNode));
-                }
-            }
-            for (let hiddenNode of hiddenNodes) {
-                for (let outputNode of outputNodes) {
-                    edges.push(createEdge(hiddenNode, outputNode));
-                }
-            }
-
-            drawNetwork();
+            drawNetwork(); // Draws only nodes now, no edges
         }
 
         function createNode(type, index, x, y) {
@@ -188,26 +178,9 @@
             return { element: node, type: type, index: index, x: x, y: y, value: 0 }; // Value for simulation
         }
 
-        function createEdge(fromNode, toNode) {
-            const edge = document.createElement('div');
-            edge.classList.add('edge');
-            edge.style.left = `${fromNode.x}px`; // Start at the center of the fromNode
-            edge.style.top = `${fromNode.y}px`;  // Start at the center of the fromNode
-            edge.style.width = `${Math.abs(toNode.x - fromNode.x)}px`; // Width is the horizontal distance
-            edge.style.height = '0px'; // Height is 0, we'll use border for line
-            edge.style.borderBottomWidth = '1px';
-            edge.style.borderBottomStyle = 'dashed';
-            edge.style.borderColor = '#777';
-            const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x) * (180 / Math.PI);
-            edge.style.transformOrigin = 'top left'; // Rotate from the start point
-            edge.style.transform = `rotate(${angle}deg)`;
-            return edge;
-        }
-
 
         function drawNetwork() {
-            networkCanvas.innerHTML = ''; // Clear canvas to redraw edges properly
-            edges.forEach(edge => networkCanvas.appendChild(edge)); // Draw edges first
+            networkCanvas.innerHTML = ''; // Clear canvas
             inputNodes.forEach(node => networkCanvas.appendChild(node.element));
             hiddenNodes.forEach(node => networkCanvas.appendChild(node.element));
             outputNodes.forEach(node => networkCanvas.appendChild(node.element));
@@ -217,27 +190,20 @@
             if (inputNodes.length === 0) return; // Network not set up
 
             epochCount++;
-            currentInputValues = [];
-            for (let i = 0; i < inputNodesCount; i++) {
-                currentInputValues.push(parseFloat(document.getElementById(`inputValue${i}`).value));
-                inputNodes[i].value = currentInputValues[i];
-                inputNodes[i].element.textContent = inputNodes[i].value.toFixed(2);
-            }
 
-            desiredOutputValues = []; // Update desired output values from input fields in each epoch
-            for (let i = 0; i < outputNodesCount; i++) {
-                desiredOutputValues.push(parseFloat(document.getElementById(`outputValue${i}`).value));
-            }
+            // No need to read input values here, using stored initial values 'currentInputValues'
+
+            // Desired output values are read in setup and remain constant 'desiredOutputValues'
 
             // Simple Forward Pass Simulation with more directed value changes
             let hiddenLayerOutputs = [];
             for (let i = 0; i < hiddenNodesCount; i++) {
                 let sum = 0;
                 for (let j = 0; j < inputNodesCount; j++) {
-                    sum += inputNodes[j].value * 0.5; // Simulate weights, keep them constant for visual direction
+                    sum += currentInputValues[j] * 0.5; // Use stored input values
                 }
                 let hiddenOutput = sigmoid(sum); //  Activation
-                // Make hidden node values move slightly towards an average of inputs (for visualization)
+                // Update hidden node values
                 hiddenNodes[i].value = hiddenNodes[i].value + (hiddenOutput - hiddenNodes[i].value) * 0.3; // Move 30% towards calculated output
                 hiddenNodes[i].element.textContent = hiddenNodes[i].value.toFixed(2);
                 hiddenLayerOutputs.push(hiddenNodes[i].value);
@@ -247,22 +213,13 @@
             for (let i = 0; i < outputNodesCount; i++) {
                 let sum = 0;
                 for (let j = 0; j < hiddenNodesCount; j++) {
-                    sum += hiddenNodes[j].value * 0.5; // Simulate weights, constant for visual direction
+                    sum += hiddenNodes[j].value * 0.5;
                 }
                 let outputValue = sigmoid(sum);
-                 // Make output node values move slightly towards the desired output values
+                 // Update output node values, move towards desired output values
                 outputNodes[i].value = outputNodes[i].value + (desiredOutputValues[i] - outputNodes[i].value) * 0.3; // Move 30% towards desired output
                 outputNodes[i].element.textContent = outputNodes[i].value.toFixed(2);
                 outputLayerOutputs.push(outputNodes[i].value);
-            }
-
-            // Simulate "learning" by adjusting input/output values less aggressively after a few epochs
-            if (epochCount < 20) { // Increased epoch limit to 20
-                 for (let i = 0; i < inputNodesCount; i++) {
-                    let currentValue = parseFloat(document.getElementById(`inputValue${i}`).value);
-                    // Nudge input slightly less each epoch to show convergence-like behavior
-                    document.getElementById(`inputValue${i}`).value = (currentValue + (Math.random() * 0.2 - 0.1) * (1 - (epochCount / 20))).toFixed(2);
-                }
             }
         }
 
