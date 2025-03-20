@@ -11,6 +11,3 @@ Welcome to the course homepage!
 | Anti-Clustering | [Anti-Clustering Notes](https://prachuryyakaushik.github.io/ml/notes/Anti_clustering.pdf) | [Anti-clustering](https://prachuryyakaushik.github.io/ml/notes/Material_Anti_Clustering.pdf) [Impossibility Theorem](https://prachuryyakaushik.github.io/ml/notes/Material_Impossibility_Theorem.pdf) | |
 | Feed Forward Neural Network | | | [Feed Forward Neural Network Visualization](https://prachuryyakaushik.github.io/ml/FFNN.htm) |
 
-
----
-[GitHub Repo](https://github.com/prachuryyakaushik/ml)
