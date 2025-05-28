@@ -1,4 +1,7 @@
-## Machine Learning Visualizations:
-1. [Linear Regression](https://prachuryyakaushik.github.io/ml/sgd.htm)
-2. [Logistic Regression](https://prachuryyakaushik.github.io/ml/logistic_regression.htm)
-3. [Feed Forward Neural Network](https://prachuryyakaushik.github.io/ml/FFNN.htm)
+## This website is under construction
+[Personal webpage in IITG](https://www.iitg.ac.in/cse/student-pages/k.prachuryya) <br>
+[Connect in LinkedIn](https://www.linkedin.com/in/prachuryyakaushik/) <br>
+<br>
+More details will be updated soon. Stay tuned!! <br>
+<br>
+[Machine Learning (CS361) Visualizations](https://prachuryyakaushik.github.io/ml/)<br>
