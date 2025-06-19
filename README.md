@@ -4,6 +4,6 @@
 <br>
 More details will be updated soon. Stay tuned!! <br>
 <br>
-[DA209: Coursera course on Data Modeling & Visualization](https://prachuryyakaushik.github.io/DA209_DMV/)<br>
+[DA209: Coursera course on Data Modeling & Visualization](https://prachuryyakaushik.github.io/DA209_DMV/index.html)<br>
 <br>
 [Machine Learning (CS361) Visualizations](https://prachuryyakaushik.github.io/ml/)<br>
