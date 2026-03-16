@@ -1,4 +1,5 @@
 ## This website is under construction
+[Prachuryya Kaushik Resume, (updated till 24th January, 2026)](https://github.com/PrachuryyaKaushik/PrachuryyaKaushik.github.io/blob/main/Prachuryya_Kaushik_resume_24_1_26.pdf) <br>
 [Personal webpage in IITG](https://www.iitg.ac.in/cse/student-pages/k.prachuryya) <br>
 [Connect in LinkedIn](https://www.linkedin.com/in/prachuryyakaushik/) <br>
 <br>
